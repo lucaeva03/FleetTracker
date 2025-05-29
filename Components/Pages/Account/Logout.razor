@@ -1,0 +1,39 @@
+﻿@page "/logout"
+
+@using Microsoft.AspNetCore.Authentication
+@inject NavigationManager navigationManager
+
+<PageTitle>Logout - FleetTracker</PageTitle>
+
+<div class="logout-container">
+    <div class="logout-card">
+        <img src="/images/LogoutExec.png" class="logout-image" alt="Logout" />
+
+        <div class="logout-message">
+            Il logout è stato eseguito correttamente
+        </div>
+
+        <div class="action-buttons">
+            <a href="/" class="home-link">Ritorna alla Home</a>
+            <a href="/login" class="login-link">Ritorna al Login</a>
+        </div>
+    </div>
+</div>
+
+@code {
+    [CascadingParameter]
+    public HttpContext HttpContext { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (HttpContext != null)
+        {
+            await base.OnInitializedAsync();
+            if (HttpContext.User.Identity.IsAuthenticated)
+            {
+                await HttpContext.SignOutAsync();
+                navigationManager.NavigateTo("/", true);
+            }
+        }
+    }
+}

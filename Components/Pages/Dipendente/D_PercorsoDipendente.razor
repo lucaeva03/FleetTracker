@@ -1,0 +1,285 @@
+﻿@page "/D_percorso_dipendente"
+@using Microsoft.AspNetCore.Authorization
+@rendermode InteractiveServer
+@attribute [Authorize(Roles = "dipendente")]
+
+@using System.Security.Claims
+@using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.AspNetCore.Components
+@using Microsoft.EntityFrameworkCore
+@using FleetTracker.Services
+@using FleetTracker.Data
+@using FleetTracker.Models.Events
+
+@inject AuthenticationStateProvider AuthStateProvider
+@inject NavigationManager Navigation
+@inject FleetTrackerDbContext dbContext
+@inject OrsRoutingService RoutingService
+@inject IJSRuntime JS
+
+<PageTitle>Il mio percorso odierno</PageTitle>
+
+<div class="container-fluid route-tracking-page py-4">
+    <!-- Header Card -->
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-header bg-company text-white">
+            <h4 class="mb-0">
+                <i class="bi bi-geo-alt me-2"></i>
+                <strong>Il mio percorso odierno</strong>
+            </h4>
+        </div>
+        <div class="card-body">
+            @if (!string.IsNullOrEmpty(infoMessage))
+            {
+                <div class="alert alert-info mt-2">
+                    @infoMessage
+                </div>
+            }
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Map Column -->
+        <div class="col-lg-8 mb-4">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body p-0">
+                    <div class="route-map-container">
+                        <div id="map" class="w-100" style="height:400px;"></div>
+                        @if (_loading)
+                        {
+                            <div class="map-loading-overlay d-flex justify-content-center align-items-center">
+                                <div class="spinner-border text-company" role="status">
+                                    <span class="visually-hidden">Caricamento mappa…</span>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sidebar Column -->
+        <div class="col-lg-4">
+            <!-- Assigned Vehicle -->
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-company text-white">
+                    <h6 class="mb-0">
+                        <i class="bi bi-truck-front-fill me-2"></i>
+                        Veicolo Assegnato
+                    </h6>
+                </div>
+                <div class="card-body">
+                    @if (assignedVehicle != null)
+                    {
+                        <p class="mb-1 fw-semibold">@assignedVehicle.modello</p>
+                        <p class="text-muted mb-0">Targa: @assignedVehicle.targa</p>
+                    }
+                    else
+                    {
+                        <p class="text-muted mb-0">Nessun veicolo assegnato</p>
+                    }
+                </div>
+            </div>
+
+            <!-- Destinations List -->
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-company text-white">
+                    <h6 class="mb-0">
+                        <i class="bi bi-list-ul me-2"></i>
+                        Destinazioni (@currentDeliveries.Count)
+                    </h6>
+                </div>
+                <div class="list-group list-group-flush overflow-auto" style="max-height: 30vh;">
+                    @foreach (var d in currentDeliveries.OrderBy(d => d.data_prevista).ThenBy(d => d.orario_previsto))
+                    {
+                        <div class="list-group-item">
+                            <i class="bi bi-geo-alt-fill text-company me-2"></i>
+                            <span class="fw-medium">@d.indirizzo_dest</span>
+                            @if (d.orario_previsto.HasValue)
+                            {
+                                <span class="float-end text-muted small">
+                                    @d.orario_previsto.Value.ToString("hh\\:mm")
+                                </span>
+                            }
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    :root {
+        --company-color: #165a61;
+    }
+
+    .text-company {
+        color: var(--company-color) !important;
+    }
+
+    .bg-company, .btn-company {
+        background-color: var(--company-color) !important;
+        border-color: var(--company-color) !important;
+        color: #fff !important;
+    }
+
+        .btn-company:hover {
+            background-color: #144a4b !important;
+            border-color: #144a4b !important;
+        }
+
+    .border-company {
+        border-color: var(--company-color) !important;
+    }
+
+    .input-group-text {
+        border-color: var(--company-color) !important;
+    }
+
+    .spinner-border {
+        color: #fff;
+    }
+
+    .route-tracking-page {
+        font-family: "Segoe UI", Roboto, sans-serif;
+    }
+
+    .route-map-container {
+        position: relative;
+    }
+
+    .map-loading-overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(255,255,255,0.8);
+        z-index: 1000;
+    }
+
+    .route-map-container #map {
+        border: 2px solid rgba(0,0,0,0.1);
+        border-radius: 0.75rem;
+        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    }
+</style>
+
+@code {
+    private const string DepotAddress = "Amazon Logistics DUM1, Via Santa Giuliana, 27/E, 06063 Magione PG";
+
+    private int userId;
+    private bool _loading;
+    private string infoMessage = "";
+    private List<Consegna> currentDeliveries = new();
+    private Veicolo assignedVehicle;
+    private bool _firstRender = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+
+        if (user.Identity is null || !user.Identity.IsAuthenticated)
+        {
+            Navigation.NavigateTo("login");
+            return;
+        }
+
+        var username = user.Identity.Name
+                       ?? user.FindFirst(ClaimTypes.Name)?.Value;
+        if (string.IsNullOrEmpty(username))
+        {
+            infoMessage = "Impossibile determinare l'utente autenticato.";
+            return;
+        }
+
+        var utente = await dbContext.utenti
+            .AsNoTracking()
+            .FirstOrDefaultAsync(u => u.username == username);
+        if (utente is null)
+        {
+            infoMessage = "Utente non trovato nel sistema.";
+            return;
+        }
+
+        userId = utente.id;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender && userId != 0 && _firstRender)
+        {
+            _firstRender = false;
+            await LoadTodayRouteAsync();
+        }
+    }
+
+    private async Task LoadTodayRouteAsync()
+    {
+        infoMessage = "";
+        currentDeliveries.Clear();
+        assignedVehicle = null;
+
+        _loading = true;
+        await InvokeAsync(StateHasChanged);
+
+        try
+        {
+            await JS.InvokeVoidAsync("clearMap");
+
+            var today = DateTime.Today;
+            var deliveries = await dbContext.Consegne
+                .Where(c =>
+                    c.dipendente_id == userId &&
+                    c.data_prevista >= today &&
+                    c.data_prevista < today.AddDays(1))
+                .ToListAsync();
+
+            if (!deliveries.Any())
+            {
+                infoMessage = "Non ci sono consegne programmate per oggi.";
+                return;
+            }
+            currentDeliveries = deliveries;
+
+            var assignment = await dbContext.AssegnazioniVeicolo
+                .Include(a => a.Veicolo)
+                .Where(a =>
+                    a.dipendente_id == userId &&
+                    a.data_inizio.Date <= today &&
+                    (a.data_fine == null ||
+                     a.data_fine.Value.Date >= today))
+                .OrderByDescending(a => a.data_inizio)
+                .FirstOrDefaultAsync();
+            assignedVehicle = assignment?.Veicolo;
+
+            // 1) Geocoding del deposito
+            var depotCoord = await RoutingService.GeocodeAsync(DepotAddress);
+
+            // 2) Geocoding delle destinazioni
+            var deliveryCoords = (await Task.WhenAll(
+                deliveries.Select(d => RoutingService.GeocodeAsync(d.indirizzo_dest))
+            )).ToList();
+
+            // 3) Preparo coords con deposito in testa
+            var coords = new List<double[]> { depotCoord };
+            coords.AddRange(deliveryCoords);
+
+            // 4) Routing e disegno
+            var geometry = await RoutingService.GetRouteAsync(coords);
+            await JS.InvokeVoidAsync("drawEmployeeRoute", geometry, coords);
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine(ex);
+            infoMessage = $"Errore durante il routing: {ex.Message}";
+        }
+        finally
+        {
+            _loading = false;
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+}

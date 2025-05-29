@@ -1,0 +1,477 @@
+﻿@page "/A_gestione_consegne"
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.EntityFrameworkCore
+@using Microsoft.AspNetCore.Components.Forms
+@using FleetTracker.Data
+@using FleetTracker.Models.Events
+@using System.Globalization
+@rendermode InteractiveServer
+@attribute [Authorize(Roles = "admin")]
+@inject FleetTrackerDbContext dbContext
+
+<PageTitle>Gestione Consegne - FleetTracker</PageTitle>
+
+<div class="container-fluid delivery-management-page py-4">
+    <!-- Ricerca e Aggiungi -->
+    <div class="row mb-4 align-items-center">
+        <div class="col-lg-8 col-md-6 mb-2 mb-md-0" style="width: 83%">
+            <div class="input-group">
+                <span class="input-group-text border-company bg-white"><i class="bi bi-search text-company"></i></span>
+                <input class="form-control border-company" placeholder="Cerca per codice..." @bind-value="searchTerm" @bind-value:event="oninput" />
+            </div>
+        </div>
+        <div class="col-lg-4 col-md-6" style="width: 17%">
+            <button class="btn btn-outline-company shadow-sm px-3" @onclick="ShowAddModal">
+                <i class="bi bi-plus-lg me-1"></i> Nuova Consegna
+            </button>
+        </div>
+    </div>
+
+    <!-- Tabella Consegne -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card shadow-sm border-0 rounded-3">
+                <div class="card-header bg-company text-white py-2">
+                    <h4 class="mb-0"><i class="bi bi-truck me-2"></i><strong>Elenco Consegne</strong></h4>
+                </div>
+                <div class="table-responsive" style="max-height: 52vh;">
+                    @if (FilteredDeliveries.Any())
+                    {
+                        <table class="table table-hover align-middle mb-0">
+                            <thead class="table-light sticky-top">
+                                <tr>
+                                    <th>Codice</th>
+                                    <th>Cliente</th>
+                                    <th>Dipendente</th>
+                                    <th>Data Consenga</th>
+                                    <th>Orario Previsto</th>
+                                    <th>Indirizzo</th>
+                                    <th>Stato</th>
+                                    <th class="text-center">Azioni</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var c in FilteredDeliveries)
+                                {
+                                    bool isPast = c.data_prevista.Date < DateTime.Today;
+                                    bool showWarning = (c.stato == "in preparazione" || c.stato == "in consegna") && isPast;
+                                    bool isAssigned = IsDipendenteAssigned(c.dipendente_id, c.data_prevista);
+                                    <tr class="@( showWarning ? "faded-danger" : (!isPast && !isAssigned) ? "faded-warning" : null )">
+                                        <td class="fw-semibold text-company">@c.c_id</td>
+                                        <td>@c.Cliente?.username</td>
+                                        <td>@c.Dipendente?.username</td>
+                                        <td>@c.data_prevista.ToString("dd/MM/yyyy")</td>
+                                        <td>
+                                            @if (isPast)
+                                            {
+                                                <input type="time" class="form-control form-control-sm border-company" value="@(c.orario_previsto?.ToString(@"hh\:mm") ?? "")" @onchange="e => OnTimeChanged(e, c)" />
+                                            }
+                                            else
+                                            {
+                                                <span class="text-muted">@(c.orario_previsto?.ToString(@"hh\:mm") ?? "-")</span>
+                                            }
+                                        </td>
+                                        <td>@c.indirizzo_dest</td>
+                                        <td>
+                                            @if (isPast)
+                                            {
+                                                <select class="form-select form-select-sm border-company" @bind="c.stato">
+                                                    <option value="in preparazione">In Preparazione</option>
+                                                    <option value="in consegna">In Consegna</option>
+                                                    <option value="consegnato">Consegnato</option>
+                                                </select>
+                                            }
+                                            else
+                                            {
+                                                <span class="badge bg-light text-company text-uppercase">@c.stato</span>
+                                            }
+                                        </td>
+                                        <td class="text-center">
+                                            @if (isPast)
+                                            {
+                                                <button class="btn btn-sm btn-company me-1" @onclick="() => ConfirmUpdateAsync(c)"><i class="bi bi-save"></i></button>
+                                            }
+                                            <button class="btn btn-sm btn-outline-danger" @onclick="() => ShowDeleteModal(c)"><i class="bi bi-trash-fill"></i></button>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    }
+                    else
+                    {
+                        <div class="py-5">
+                            <p class="text-center text-muted mb-0">Nessuna consegna trovata.</p>
+                        </div>
+                    }
+                </div>
+
+                <!-- Statistiche Consegne -->
+                <div class="card-body">
+                    <h4 class="text-company mb-2 text-center"><strong>Statistiche Consegne</strong></h4>
+                    <div class="row g-3">
+                        @foreach (var stat in deliveryStats)
+                        {
+                            <div class="col-sm-4">
+                                <div class="card h-100 border-company shadow-sm">
+                                    <div class="card-body text-center">
+                                        <h6 class="text-company mb-1 text-uppercase">@stat.Label</h6>
+                                        <h4 class="fw-bold mb-3">@($"{stat.Percent:0.##}%")</h4>
+                                        <div class="progress" style="height:6px;">
+                                            <div class="progress-bar bg-company"
+                                                 role="progressbar"
+                                                 style=@($"width: {stat.Percent.ToString(CultureInfo.InvariantCulture)}%")
+                                                 aria-valuenow="@stat.Percent"
+                                                 aria-valuemin="0"
+                                                 aria-valuemax="100">
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Aggiungi Consegna -->
+    @if (showAddModal)
+    {
+        <div class="modal-backdrop fade show"></div>
+        <div class="modal fade show d-block" tabindex="-1">
+            <div class="modal-dialog modal-lg modal-dialog-centered">
+                <div class="modal-content border-0 rounded-3 shadow-lg">
+                    <div class="modal-header bg-company text-white">
+                        <h5 class="modal-title"><i class="bi bi-truck me-2"></i>Nuova Consegna</h5>
+                        <button type="button" class="btn-close btn-close-white" @onclick="CancelAdd"></button>
+                    </div>
+                    <div class="modal-body">
+                        @if (!string.IsNullOrEmpty(addError))
+                        {
+                            <div class="alert alert-danger">@addError</div>
+                        }
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <div class="form-floating">
+                                    <select class="form-select border-company" @bind="newDelivery.cliente_id">
+                                        <option value="0">-- Seleziona Cliente --</option>
+                                        @foreach (var u in clienti)
+                                        {
+                                            <option value="@u.id">@u.username</option>
+                                        }
+                                    </select>
+                                    <label>Cliente</label>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-floating">
+                                    <select class="form-select border-company" @bind="newDelivery.dipendente_id">
+                                        <option value="0">-- Seleziona Dipendente --</option>
+                                        @foreach (var u in dipendenti)
+                                        {
+                                            <option value="@u.id">@u.username</option>
+                                        }
+                                    </select>
+                                    <label>Dipendente</label>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="form-floating">
+                                    <input type="date" class="form-control border-company" @bind="newDelivery.data_prevista" />
+                                    <label>Data Prevista</label>
+                                </div>
+                            </div>
+                            <div class="col-md-8">
+                                <div class="form-floating">
+                                    <input class="form-control border-company" @bind="newDelivery.indirizzo_dest" placeholder="Indirizzo Destinazione" />
+                                    <label>Indirizzo Destinazione</label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button class="btn btn-outline-secondary" @onclick="CancelAdd">Annulla</button>
+                        <button class="btn btn-company" @onclick="ConfirmAddAsync">
+                            <i class="bi bi-check-lg me-1"></i>Salva
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+
+    <!-- Modal Elimina Consegna -->
+    @if (showDeleteModal)
+    {
+        <div class="modal-backdrop fade show"></div>
+        <div class="modal fade show d-block" tabindex="-1">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content border-danger">
+                    <div class="modal-header bg-danger text-white">
+                        <h5 class="modal-title"><i class="bi bi-exclamation-triangle me-2"></i>Conferma Eliminazione</h5>
+                        <button type="button" class="btn-close btn-close-white" @onclick="CancelDelete"></button>
+                    </div>
+                    <div class="modal-body">
+                        Sei sicuro di voler eliminare la consegna <strong>@deliveryToDelete?.c_id</strong>?<br />
+                        Questa operazione è irreversibile.
+                    </div>
+                    <div class="modal-footer">
+                        <button class="btn btn-secondary" @onclick="CancelDelete">Annulla</button>
+                        <button class="btn btn-danger" @onclick="ConfirmDeleteAsync">Elimina</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+<style>
+    :root {
+        --company-color: #165a61;
+    }
+
+    .text-company {
+        color: var(--company-color) !important;
+    }
+
+    .bg-company, .btn-company {
+        background-color: var(--company-color) !important;
+        border-color: var(--company-color) !important;
+        color: #fff;
+    }
+
+    .btn-outline-company {
+        color: var(--company-color);
+        border: 1px solid var(--company-color);
+    }
+
+        .btn-outline-company:hover {
+            background-color: var(--company-color);
+            color: #fff;
+        }
+
+    .border-company {
+        border-color: var(--company-color) !important;
+    }
+
+    .badge.bg-company {
+        background-color: var(--company-color) !important;
+    }
+
+    .table-responsive {
+        scrollbar-width: thin;
+        scrollbar-color: var(--company-color) #f1f1f1;
+    }
+
+        .table-responsive::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        .table-responsive::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 4px;
+        }
+
+        .table-responsive::-webkit-scrollbar-thumb {
+            background-color: var(--company-color);
+            border-radius: 4px;
+            border: 2px solid #f1f1f1;
+        }
+
+    .modal-body .form-floating {
+        margin-bottom: 1rem;
+    }
+
+    .modal-content {
+        overflow: hidden;
+    }
+
+    .faded-danger {
+        background-color: rgba(220, 53, 69, 0.15);
+    }
+
+    .faded-warning {
+        background-color: rgba(255, 193, 7, 0.15); 
+    }
+
+    .table-light {
+        --bs-table-bg: #165a61;
+        --bs-table-striped-bg: #ecedee;
+        --bs-table-striped-color: #000;
+        --bs-table-active-bg: #dfe0e1;
+        --bs-table-active-color: #000;
+        --bs-table-hover-bg: #e5e6e7;
+        --bs-table-hover-color: #000;
+        color: #ffffff;
+        border-color: #dfe0e1;
+    }
+
+</style>
+
+@code {
+    private List<Consegna> deliveries = new();
+    private List<Utenti> clienti = new();
+    private List<Utenti> dipendenti = new();
+    private List<AssegnazioneVeicolo> assignments = new();
+    private string searchTerm = "";
+
+    private bool showAddModal;
+    private bool showDeleteModal;
+    private Consegna newDelivery = new() { data_prevista = DateTime.Today };
+    private Consegna deliveryToDelete;
+    private string addError;
+
+    private int totalDeliveries;
+    private List<StatItem> deliveryStats = new();
+
+    private IEnumerable<Consegna> FilteredDeliveries =>
+        string.IsNullOrWhiteSpace(searchTerm)
+            ? deliveries
+            : deliveries.Where(c => c.c_id.ToString().Contains(searchTerm, StringComparison.OrdinalIgnoreCase));
+
+    protected override async Task OnInitializedAsync()
+        => await LoadDataAsync();
+
+    private async Task LoadDataAsync()
+    {
+        // 1) Carico tutte le consegne
+        var allDeliveries = await dbContext.Consegne
+            .Include(c => c.Cliente)
+            .Include(c => c.Dipendente)
+            .ToListAsync();
+
+        // 1.5) Carico tutte le assegnazioni per il controllo
+        assignments = await dbContext.AssegnazioniVeicolo.ToListAsync();
+
+        // 2) Aggiorno automaticamente lo stato per quelle di "oggi" ancora in preparazione
+        var today = DateTime.Today;
+        var toMove = allDeliveries
+            .Where(c => c.data_prevista.Date == today && c.stato == "in preparazione")
+            .ToList();
+        if (toMove.Any())
+        {
+            foreach (var d in toMove)
+                d.stato = "in consegna";
+
+            dbContext.Consegne.UpdateRange(toMove);
+            await dbContext.SaveChangesAsync();
+        }
+
+        // 3) Ricarico le consegne ordinate
+        deliveries = await dbContext.Consegne
+            .Include(c => c.Cliente)
+            .Include(c => c.Dipendente)
+            .OrderByDescending(c => c.data_prevista)
+            .ToListAsync();
+
+        // 4) Carico clienti e dipendenti per i select
+        clienti = await dbContext.utenti
+            .Where(u => u.ruolo == "cliente")
+            .OrderBy(u => u.username)
+            .ToListAsync();
+        dipendenti = await dbContext.utenti
+            .Where(u => u.ruolo == "dipendente")
+            .OrderBy(u => u.username)
+            .ToListAsync();
+
+        // 5) Calcolo statistiche
+        totalDeliveries = deliveries.Count;
+        var statuses = new[] { "in preparazione", "in consegna", "consegnato" };
+        deliveryStats = statuses.Select(s =>
+        {
+            var count = deliveries.Count(d => d.stato == s);
+            var pct = totalDeliveries > 0 ? count * 100.0 / totalDeliveries : 0;
+            return new StatItem { Label = CultureInfo.CurrentCulture.TextInfo.ToTitleCase(s), Percent = pct };
+        }).ToList();
+    }
+
+    private void ShowAddModal()
+    {
+        addError = string.Empty;
+        newDelivery = new() { data_prevista = DateTime.Today };
+        showAddModal = true;
+    }
+    private void CancelAdd() => showAddModal = false;
+
+    private bool IsDipendenteAssigned(int dipId, DateTime d)
+    {
+        var date = d.Date;
+        return assignments.Any(a =>
+            a.dipendente_id == dipId
+            && a.data_inizio.Date <= date
+            && (a.data_fine == null || a.data_fine.Value.Date >= date)
+        );
+    }
+
+    private async Task ConfirmAddAsync()
+    {
+        addError = string.Empty;
+        if (newDelivery.cliente_id == 0 || newDelivery.dipendente_id == 0)
+        {
+            addError = "Seleziona cliente e dipendente.";
+            return;
+        }
+        if (newDelivery.data_prevista <= DateTime.Today)
+        {
+            addError = "La data prevista deve essere futura.";
+            return;
+        }
+        if (string.IsNullOrWhiteSpace(newDelivery.indirizzo_dest))
+        {
+            addError = "Inserisci l'indirizzo di destinazione.";
+            return;
+        }
+
+        newDelivery.orario_previsto = null;
+        newDelivery.stato = "in preparazione";
+        newDelivery.data_creazione = DateTime.Now;
+
+        dbContext.Consegne.Add(newDelivery);
+        await dbContext.SaveChangesAsync();
+        showAddModal = false;
+        await LoadDataAsync();
+    }
+
+    private void ShowDeleteModal(Consegna c)
+    {
+        deliveryToDelete = c;
+        showDeleteModal = true;
+    }
+    private void CancelDelete() => showDeleteModal = false;
+
+    private async Task ConfirmDeleteAsync()
+    {
+        if (deliveryToDelete != null)
+        {
+            dbContext.Consegne.Remove(deliveryToDelete);
+            await dbContext.SaveChangesAsync();
+            showDeleteModal = false;
+            await LoadDataAsync();
+        }
+    }
+
+    private void OnTimeChanged(ChangeEventArgs e, Consegna c)
+    {
+        var str = e.Value as string;
+        if (TimeSpan.TryParse(str, out var ts))
+            c.orario_previsto = ts;
+        else
+            c.orario_previsto = null;
+    }
+
+    private async Task ConfirmUpdateAsync(Consegna c)
+    {
+        dbContext.Consegne.Update(c);
+        await dbContext.SaveChangesAsync();
+        await LoadDataAsync();
+    }
+
+    private class StatItem
+    {
+        public string Label { get; set; }
+        public double Percent { get; set; }
+    }
+}

@@ -1,0 +1,344 @@
+﻿@page "/D_monitoraggio_consumi"
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize(Roles = "dipendente")]
+@rendermode InteractiveServer
+@using Microsoft.EntityFrameworkCore
+@using FleetTracker.Data
+@using FleetTracker.Models.Events
+@using System.Globalization
+@inject FleetTrackerDbContext dbContext
+@inject AuthenticationStateProvider authProvider
+
+<PageTitle>Monitoraggio Consumi - FleetTracker</PageTitle>
+
+<div class="container-fluid consumption-page py-2">
+    <!-- Titolo -->
+    <div class="row mb-3">
+        <div class="col-12 d-flex align-items-center">
+            <i class="bi bi-speedometer2 display-6 text-company me-3"></i>
+            <h2 class="mb-0 text-company fw-bold">Monitoraggio Consumi</h2>
+        </div>
+    </div>
+
+    <!-- Calendario -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card shadow-sm border-0 rounded-3 mb-4">
+                <div class="card-header bg-company text-white d-flex justify-content-between align-items-center py-2">
+                    <button class="btn btn-sm btn-light text-company" @onclick="() => ChangeMonth(-1)">
+                        <i class="bi bi-chevron-left"></i>
+                    </button>
+                    @{
+                        var it = CultureInfo.GetCultureInfo("it-IT");
+                        var month = currentMonth.ToString("MMMM", it);
+                        var monthCap = char.ToUpper(month[0]) + month[1..];
+                    }
+                    <h5 class="mb-0">@monthCap @currentMonth.Year</h5>
+                    <button class="btn btn-sm btn-light text-company" @onclick="() => ChangeMonth(1)">
+                        <i class="bi bi-chevron-right"></i>
+                    </button>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive calendar-wrapper">
+                        <table class="table table-bordered table-hover text-center mb-0">
+                            <thead class="table-light sticky-top">
+                                <tr>
+                                    @foreach (var dn in dayNames)
+                                    {
+                                        <th>@dn</th>
+                                    }
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var week in calendarDates)
+                                {
+                                    <tr>
+                                        @foreach (var date in week)
+                                        {
+                                            bool inMonth = date.Month == currentMonth.Month;
+                                            bool sel = selectedDate.HasValue && date.Date == selectedDate.Value.Date;
+                                            <td class="
+                                                    @( !inMonth  ? "text-muted bg-light" :
+                                                       sel       ? "bg-company text-white fw-bold" :
+                                                       "bg-white" )
+                                                            "
+                                                style="cursor:pointer; vertical-align: middle;"
+                                                @onclick="() => OnDaySelected(date)">
+                                                @date.Day
+                                            </td>
+                                        }
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Form di inserimento/modifica consumo -->
+    @if (selectedDate.HasValue)
+    {
+        <div class="row">
+            <div class="col-12">
+                <div class="card shadow-sm border-0 rounded-3">
+                    <div class="card-header bg-company text-white py-2">
+                        <h5 class="mb-0">
+                            <i class="bi bi-pencil-square me-2"></i>
+                            Consumo del @selectedDate.Value.ToString("dd/MM/yyyy")
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        @if (vehicleForDay == null)
+                        {
+                            <div class="alert alert-secondary mb-0">
+                                <i class="bi bi-truck me-1"></i> Nessun veicolo assegnato.
+                            </div>
+                        }
+                        else
+                        {
+                            <p class="mb-3">
+                                <strong>@vehicleForDay.Veicolo!.targa</strong> – @vehicleForDay.Veicolo!.modello
+                                <span class="text-muted">(KM totali: @vehicleForDay.Veicolo!.km_totali)</span>
+                            </p>
+
+                            @if (!allowEdit)
+                            {
+                                <div class="alert alert-warning">
+                                    <i class="bi bi-exclamation-triangle me-1"></i>
+                                    Non puoi inserire o modificare consumi per date future.
+                                </div>
+                            }
+                            else
+                            {
+                                <EditForm Model="dailyConsumption" OnValidSubmit="SaveConsumptionAsync">
+                                    <DataAnnotationsValidator />
+                                    <ValidationSummary />
+
+                                    <div class="row g-3">
+                                        <div class="col-md-6">
+                                            <label class="form-label">Litri Carburante</label>
+                                            <InputNumber class="form-control border-company"
+                                                         @bind-Value="dailyConsumption.litri_carburante" />
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label class="form-label">KM Percorsi</label>
+                                            <InputNumber class="form-control border-company"
+                                                         @bind-Value="dailyConsumption.km_percorsi" />
+                                        </div>
+                                    </div>
+
+                                    <div class="mt-4">
+                                        <button type="submit" class="btn btn-company">
+                                            <i class="bi bi-save me-1"></i>
+                                            @(isEditing ? "Aggiorna" : "Salva")
+                                        </button>
+                                    </div>
+                                </EditForm>
+                            }
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+
+</div>
+
+@code {
+    // calendario
+    private DateTime currentMonth = new(DateTime.Today.Year, DateTime.Today.Month, 1);
+    private List<string> dayNames = new[] { "Lun", "Mar", "Mer", "Gio", "Ven", "Sab", "Dom" }.ToList();
+    private List<List<DateTime>> calendarDates = new();
+
+    // utente e dati
+    private int employeeId;
+    private List<AssegnazioneVeicolo> myAssignments = new();
+    private DateTime? selectedDate;
+    private AssegnazioneVeicolo? vehicleForDay;
+
+    // consumo per il giorno selezionato
+    private ConsumoGiornaliero dailyConsumption = new();
+    private bool isEditing = false;
+
+    // permette edit solo per oggi o date passate
+    private bool allowEdit =>
+        selectedDate.HasValue &&
+        selectedDate.Value.Date <= DateTime.Today;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadUserDataAsync();
+        BuildCalendar();
+    }
+
+    private async Task LoadUserDataAsync()
+    {
+        var auth = await authProvider.GetAuthenticationStateAsync();
+        var userName = auth.User.Identity?.Name!;
+        var user = await dbContext.utenti.SingleAsync(u => u.username == userName);
+        employeeId = user.id;
+
+        myAssignments = await dbContext.AssegnazioniVeicolo
+          .Include(a => a.Veicolo)
+          .Where(a => a.dipendente_id == employeeId)
+          .ToListAsync();
+    }
+
+    private void BuildCalendar()
+    {
+        calendarDates.Clear();
+        int dow = ((int)currentMonth.DayOfWeek + 6) % 7 + 1; // Lunedì=1
+        var cursor = currentMonth.AddDays(1 - dow);
+        for (int w = 0; w < 6; w++)
+        {
+            var week = new List<DateTime>();
+            for (int d = 0; d < 7; d++)
+            {
+                week.Add(cursor);
+                cursor = cursor.AddDays(1);
+            }
+            calendarDates.Add(week);
+        }
+    }
+
+    private void ChangeMonth(int delta)
+    {
+        currentMonth = currentMonth.AddMonths(delta);
+        BuildCalendar();
+        selectedDate = null;
+    }
+
+    private async Task OnDaySelected(DateTime date)
+    {
+        selectedDate = date.Date;
+
+        vehicleForDay = myAssignments.FirstOrDefault(a =>
+            a.data_inizio.Date <= date.Date &&
+            (a.data_fine == null || a.data_fine.Value.Date >= date.Date)
+        );
+
+        if (selectedDate > DateTime.Today)
+        {
+            dailyConsumption = new ConsumoGiornaliero();
+            isEditing = false;
+            return;
+        }
+
+        if (vehicleForDay != null)
+        {
+            var existing = await dbContext.ConsumiGiornalieri
+              .FirstOrDefaultAsync(c =>
+                c.v_id == vehicleForDay.v_id &&
+                c.dipendente_id == employeeId &&
+                c.data_log == date.Date
+              );
+
+            if (existing != null)
+            {
+                dailyConsumption = existing;
+                isEditing = true;
+            }
+            else
+            {
+                dailyConsumption = new ConsumoGiornaliero
+                    {
+                        v_id = vehicleForDay.v_id,
+                        dipendente_id = employeeId,
+                        data_log = date.Date
+                    };
+                isEditing = false;
+            }
+        }
+    }
+
+    private async Task SaveConsumptionAsync()
+    {
+        if (!allowEdit || selectedDate is null) return;
+
+        if (!isEditing)
+        {
+            dbContext.ConsumiGiornalieri.Add(dailyConsumption);
+            vehicleForDay!.Veicolo!.km_totali += dailyConsumption.km_percorsi;
+            dbContext.Veicoli.Update(vehicleForDay.Veicolo);
+        }
+        else
+        {
+            var orig = await dbContext.Entry(dailyConsumption).GetDatabaseValuesAsync();
+            int oldKm = orig.GetValue<int>("km_percorsi");
+            int diff = dailyConsumption.km_percorsi - oldKm;
+            if (diff != 0)
+            {
+                vehicleForDay!.Veicolo!.km_totali += diff;
+                dbContext.Veicoli.Update(vehicleForDay.Veicolo);
+            }
+            dbContext.ConsumiGiornalieri.Update(dailyConsumption);
+        }
+
+        await dbContext.SaveChangesAsync();
+
+        myAssignments = await dbContext.AssegnazioniVeicolo
+          .Include(a => a.Veicolo)
+          .Where(a => a.dipendente_id == employeeId)
+          .ToListAsync();
+
+        isEditing = true;
+    }
+}
+
+<style>
+    :root {
+        --company-color: #165a61;
+    }
+
+    .text-company {
+        color: var(--company-color) !important;
+    }
+
+    .bg-company {
+        background-color: var(--company-color) !important;
+    }
+
+    .border-company {
+        border-color: var(--company-color) !important;
+    }
+
+    .btn-company {
+        background-color: var(--company-color) !important;
+        border-color: var(--company-color) !important;
+        color: #fff !important;
+    }
+
+    .calendar-wrapper {
+        max-height: 400px;
+        overflow-y: auto;
+        scrollbar-width: thin;
+        scrollbar-color: var(--company-color) #f1f1f1;
+    }
+
+        .calendar-wrapper::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .calendar-wrapper::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 4px;
+        }
+
+        .calendar-wrapper::-webkit-scrollbar-thumb {
+            background-color: var(--company-color);
+            border-radius: 4px;
+            border: 2px solid #f1f1f1;
+        }
+
+    .table-hover tbody tr:hover {
+        background-color: rgba(22, 90, 97, 0.1);
+    }
+
+    .sticky-top {
+        position: sticky;
+        top: 0;
+        z-index: 10;
+    }
+</style>

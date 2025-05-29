@@ -1,0 +1,90 @@
+﻿@page "/error"
+@using System.Diagnostics
+
+<PageTitle>Errore - FleetTracker</PageTitle>
+
+<div class="container-fluid error-page py-5">
+    <div class="row justify-content-center py-5">
+        <div class="col-md-8 col-lg-6 py-5">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-company text-white d-flex align-items-center">
+                    <i class="bi bi-exclamation-triangle-fill fs-3 me-2"></i>
+                    <h4 class="mb-0">Si è verificato un errore</h4>
+                </div>
+                <div class="card-body">
+                    <p class="lead text-company fw-semibold">
+                        Ci dispiace, ma abbiamo riscontrato un problema durante l'elaborazione della tua richiesta.
+                    </p>
+
+                    @if (ShowRequestId)
+                    {
+                        <div class="alert alert-light border-company">
+                            <strong>Request ID:</strong>
+                            <code class="ms-1">@RequestId</code>
+                        </div>
+                    }
+
+                    <hr />
+
+                    <h6 class="text-muted">Modalità Sviluppo</h6>
+                    <p class="small text-muted">
+                        Se attivi l'ambiente <strong>Development</strong>, verranno mostrate informazioni tecniche aggiuntive sull'errore.
+                        <br />
+                        <span class="fw-bold">Attenzione:</span> non abilitare mai l'ambiente Development in produzione.
+                    </p>
+
+                    <div class="d-flex justify-content-end">
+                        <a href="/" class="btn btn-company px-4">
+                            <i class="bi bi-house-door-fill me-1"></i> Torna alla Home
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    :root {
+        --company-color: #165a61;
+    }
+
+    .error-page {
+        font-family: "Segoe UI", Roboto, sans-serif;
+    }
+
+    .bg-company {
+        background-color: var(--company-color) !important;
+    }
+
+    .text-company {
+        color: var(--company-color) !important;
+    }
+
+    .border-company {
+        border-color: var(--company-color) !important;
+    }
+
+    .btn-company {
+        background-color: var(--company-color) !important;
+        border-color: var(--company-color) !important;
+        color: #fff !important;
+    }
+
+        .btn-company:hover {
+            background-color: #144a4b !important;
+            border-color: #144a4b !important;
+        }
+</style>
+
+@code {
+    [CascadingParameter] private HttpContext? HttpContext { get; set; }
+
+    private string? RequestId { get; set; }
+    private bool ShowRequestId => !string.IsNullOrEmpty(RequestId);
+
+    protected override void OnInitialized()
+    {
+        RequestId = Activity.Current?.Id ?? HttpContext?.TraceIdentifier;
+    }
+}

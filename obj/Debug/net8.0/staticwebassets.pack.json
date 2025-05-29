@@ -1,0 +1,81 @@
+{
+  "Files": [
+    {
+      "Id": "C:\\Users\\lucae\\source\\repos\\FleetTracker\\obj\\Debug\\net8.0\\scopedcss\\projectbundle\\FleetTracker.bundle.scp.css",
+      "PackagePath": "staticwebassets\\FleetTracker.xa47oakjfa.bundle.scp.css"
+    },
+    {
+      "Id": "C:\\Users\\lucae\\source\\repos\\FleetTracker\\wwwroot\\app.css",
+      "PackagePath": "staticwebassets\\app.css"
+    },
+    {
+      "Id": "C:\\Users\\lucae\\source\\repos\\FleetTracker\\wwwroot\\bootstrap\\bootstrap.min.css",
+      "PackagePath": "staticwebassets\\bootstrap\\bootstrap.min.css"
+    },
+    {
+      "Id": "C:\\Users\\lucae\\source\\repos\\FleetTracker\\wwwroot\\bootstrap\\bootstrap.min.css.map",
+      "PackagePath": "staticwebassets\\bootstrap\\bootstrap.min.css.map"
+    },
+    {
+      "Id": "C:\\Users\\lucae\\source\\repos\\FleetTracker\\wwwroot\\favicon.png",
+      "PackagePath": "staticwebassets\\favicon.png"
+    },
+    {
+      "Id": "C:\\Users\\lucae\\source\\repos\\FleetTracker\\wwwroot\\images\\AccessDenied.png",
+      "PackagePath": "staticwebassets\\images\\AccessDenied.png"
+    },
+    {
+      "Id": "C:\\Users\\lucae\\source\\repos\\FleetTracker\\wwwroot\\images\\BGHomeNA.png",
+      "PackagePath": "staticwebassets\\images\\BGHomeNA.png"
+    },
+    {
+      "Id": "C:\\Users\\lucae\\source\\repos\\FleetTracker\\wwwroot\\images\\BGLogin.png",
+      "PackagePath": "staticwebassets\\images\\BGLogin.png"
+    },
+    {
+      "Id": "C:\\Users\\lucae\\source\\repos\\FleetTracker\\wwwroot\\images\\Logo.png",
+      "PackagePath": "staticwebassets\\images\\Logo.png"
+    },
+    {
+      "Id": "C:\\Users\\lucae\\source\\repos\\FleetTracker\\wwwroot\\images\\LogoFB.png",
+      "PackagePath": "staticwebassets\\images\\LogoFB.png"
+    },
+    {
+      "Id": "C:\\Users\\lucae\\source\\repos\\FleetTracker\\wwwroot\\images\\LogoIG.png",
+      "PackagePath": "staticwebassets\\images\\LogoIG.png"
+    },
+    {
+      "Id": "C:\\Users\\lucae\\source\\repos\\FleetTracker\\wwwroot\\images\\LogoX.png",
+      "PackagePath": "staticwebassets\\images\\LogoX.png"
+    },
+    {
+      "Id": "C:\\Users\\lucae\\source\\repos\\FleetTracker\\wwwroot\\images\\LogoutExec.png",
+      "PackagePath": "staticwebassets\\images\\LogoutExec.png"
+    },
+    {
+      "Id": "C:\\Users\\lucae\\source\\repos\\FleetTracker\\wwwroot\\images\\icon-home-map.png",
+      "PackagePath": "staticwebassets\\images\\icon-home-map.png"
+    },
+    {
+      "Id": "obj\\Debug\\net8.0\\staticwebassets\\msbuild.FleetTracker.Microsoft.AspNetCore.StaticWebAssetEndpoints.props",
+      "PackagePath": "build\\Microsoft.AspNetCore.StaticWebAssetEndpoints.props"
+    },
+    {
+      "Id": "obj\\Debug\\net8.0\\staticwebassets\\msbuild.FleetTracker.Microsoft.AspNetCore.StaticWebAssets.props",
+      "PackagePath": "build\\Microsoft.AspNetCore.StaticWebAssets.props"
+    },
+    {
+      "Id": "obj\\Debug\\net8.0\\staticwebassets\\msbuild.build.FleetTracker.props",
+      "PackagePath": "build\\FleetTracker.props"
+    },
+    {
+      "Id": "obj\\Debug\\net8.0\\staticwebassets\\msbuild.buildMultiTargeting.FleetTracker.props",
+      "PackagePath": "buildMultiTargeting\\FleetTracker.props"
+    },
+    {
+      "Id": "obj\\Debug\\net8.0\\staticwebassets\\msbuild.buildTransitive.FleetTracker.props",
+      "PackagePath": "buildTransitive\\FleetTracker.props"
+    }
+  ],
+  "ElementsToRemove": []
+}

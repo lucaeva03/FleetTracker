@@ -1,0 +1,754 @@
+﻿@page "/A_gestione_veicoli"
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.EntityFrameworkCore
+@using FleetTracker.Data
+@using FleetTracker.Models.Events
+@using System.Linq
+@using System.Globalization
+@rendermode InteractiveServer
+@attribute [Authorize(Roles = "admin")]
+@inject FleetTrackerDbContext dbContext
+
+<PageTitle>Gestione Veicoli - FleetTracker</PageTitle>
+
+<div class="container-fluid vehicle-management-page py-4">
+  <!-- Ricerca & Aggiungi -->
+  <div class="row mb-4 align-items-center">
+    <div class="col-md-8 mb-3 mb-md-0">
+      <div class="input-group shadow-sm rounded-3 overflow-hidden">
+        <span class="input-group-text bg-company border-0">
+          <i class="bi bi-search text-white"></i>
+        </span>
+        <input class="form-control border-0" placeholder="Cerca per targa..." 
+               @bind="searchTerm" @bind:event="oninput" />
+      </div>
+    </div>
+    <div class="col-md-4 text-md-end">
+      <button class="btn btn-company shadow-sm px-4 py-2" @onclick="ShowAddModal">
+        <i class="bi bi-plus-lg me-1"></i> Aggiungi veicolo
+      </button>
+    </div>
+  </div>
+
+  <!-- Tabella Veicoli -->
+  <div class="card shadow-sm border-0 rounded-3 mb-5">
+    <div class="table-responsive" style="max-height: 45vh;">
+      @if (FilteredVehicles.Any())
+      {
+        <table class="table table-hover table-striped align-middle mb-0">
+          <thead class="table-light sticky-top">
+            <tr>
+              <th>Targa</th>
+              <th>Modello</th>
+              <th>Anno</th>
+              <th>KM Totali</th>
+              <th>Stato</th>
+              <th>Acquisto</th>
+              <th class="text-center">Azioni</th>
+            </tr>
+          </thead>
+          <tbody>
+            @foreach (var v in FilteredVehicles)
+            {
+              <tr>
+                <td class="fw-semibold text-company">@v.targa</td>
+                <td>@v.modello</td>
+                <td>@v.anno_immatricolazione</td>
+                <td>@v.km_totali</td>
+                <td>
+                  <span class="badge bg-light text-company text-uppercase">
+                    @v.stato_corrente
+                  </span>
+                </td>
+                <td>@v.data_acquisto.ToString("dd/MM/yyyy")</td>
+                <td class="text-center">
+                  <button class="btn btn-outline-danger btn-sm" 
+                          @onclick="() => ShowDeleteModal(v)" 
+                          title="Elimina">
+                    <i class="bi bi-trash-fill"></i>
+                  </button>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      }
+      else
+      {
+        <div class="py-5">
+          <p class="text-center text-muted mb-0">Nessun veicolo trovato.</p>
+        </div>
+      }
+    </div>
+  </div>
+
+  <!-- Statistiche & Assegnazioni -->
+  <div class="row g-4">
+        <!-- Statistiche -->
+        <div class="col-lg-4">
+            <div class="card shadow-sm border-0 rounded-3 h-100">
+                <div class="card-body">
+                    <h5 class="card-title text-company mb-4"><strong>Statistiche Veicoli</strong></h5>
+                    <ul class="list-group list-group-flush">
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            Totale veicoli
+                            <span class="badge bg-company rounded-pill">@totalVehicles</span>
+                        </li>
+                        @foreach (var stat in vehicleStats)
+                        {
+                            var icon = stat.Label switch
+                            {
+                                "Deposito" => "bi-building",
+                                "Fuori deposito" => "bi-truck",
+                                "Manutenzione" => "bi-wrench",
+                                _ => "bi-bar-chart"
+                            };
+
+                            <li class="list-group-item">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <small><i class="bi @icon me-2"></i>@stat.Label</small>
+                                    <small>@($"{stat.Percent:0.##}%")</small>
+                                </div>
+                                <div class="progress mt-2" style="height:6px; border-radius:4px;">
+                                    <div class="progress-bar progress-bar-striped @stat.BarClass"
+                                         role="progressbar"
+                                         style="@($"width:{stat.Percent.ToString(CultureInfo.InvariantCulture)}%")"
+                                         aria-valuenow="@stat.Percent"
+                                         aria-valuemin="0"
+                                         aria-valuemax="100">
+                                    </div>
+                                </div>
+                            </li>
+                        }
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+
+    <!-- Assegnazioni -->
+    <div class="col-lg-8">
+      <div class="d-flex justify-content-between align-items-center mb-3">
+        <h5 class="text-company"><strong>Assegnazione Veicoli</strong></h5>
+        <button class="btn btn-outline-company" @onclick="ShowAssignModal">
+          <i class="bi bi-link-45deg me-1"></i> Nuova Assegnazione
+        </button>
+      </div>
+      <div class="card shadow-sm border-0 rounded-3">
+        <div class="table-responsive" style="max-height: 45vh;">
+          @if (assignments.Any())
+          {
+            <table class="table table-hover table-striped align-middle mb-0">
+              <thead class="table-light sticky-top">
+                <tr>
+                  <th>Veicolo</th>
+                  <th>Dipendente</th>
+                  <th>Inizio</th>
+                  <th>Fine</th>
+                  <th class="text-center">Azioni</th>
+                </tr>
+              </thead>
+              <tbody>
+                @foreach (var a in assignments)
+                {
+                  <tr>
+                    <td class="fw-semibold text-company">@a.Veicolo!.targa</td>
+                    <td>@a.Dipendente!.username</td>
+                    <td>@a.data_inizio.ToString("dd/MM/yyyy")</td>
+                    <td>@(a.data_fine?.ToString("dd/MM/yyyy") ?? "-")</td>
+                    <td class="text-center">
+                      <button class="btn btn-outline-danger btn-sm"
+                              @onclick="() => ShowDeleteAssignModal(a)"
+                              title="Rimuovi">
+                        <i class="bi bi-trash-fill"></i>
+                      </button>
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          }
+          else
+          {
+            <div class="py-5">
+              <p class="text-center text-muted mb-0">Nessuna assegnazione presente.</p>
+            </div>
+          }
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Nuovo Veicolo -->
+@if (showAddModal)
+{
+  <div class="modal-backdrop fade show"></div>
+  <div class="modal fade show d-block" tabindex="-1">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+      <div class="modal-content rounded-3 shadow-lg">
+        <div class="modal-header bg-company text-white">
+          <h5 class="modal-title"><i class="bi bi-truck me-2"></i>Nuovo Veicolo</h5>
+          <button type="button" class="btn-close btn-close-white" @onclick="CancelAdd"></button>
+        </div>
+        <div class="modal-body">
+          @if (!string.IsNullOrEmpty(addError))
+          {
+            <div class="alert alert-danger">@addError</div>
+          }
+          <div class="row g-3">
+            <div class="col-md-6">
+              <div class="form-floating">
+                <input class="form-control border-company" id="inputTarga" @bind="newVehicle.targa" placeholder="Targa" />
+                <label for="inputTarga">Targa</label>
+              </div>
+            </div>
+            <div class="col-md-6">
+              <div class="form-floating">
+                <input class="form-control border-company" id="inputModello" @bind="newVehicle.modello" placeholder="Modello" />
+                <label for="inputModello">Modello</label>
+              </div>
+            </div>
+            <div class="col-md-4">
+              <div class="form-floating">
+                <input type="number" class="form-control border-company" id="inputAnno"
+                       @bind="newVehicle.anno_immatricolazione" placeholder="Anno" />
+                <label for="inputAnno">Anno Immatricolazione</label>
+              </div>
+            </div>
+            <div class="col-md-4">
+              <div class="form-floating">
+                <input type="number" class="form-control border-company" id="inputKm"
+                       @bind="newVehicle.km_totali" placeholder="KM" />
+                <label for="inputKm">KM Totali</label>
+              </div>
+            </div>
+            <div class="col-md-4">
+              <div class="form-floating">
+                <select class="form-select border-company" id="selectStato" @bind="newVehicle.stato_corrente">
+                  <option value="">-- Stato --</option>
+                  <option value="deposito">Deposito</option>
+                  <option value="fuori deposito">Fuori deposito</option>
+                  <option value="manutenzione">Manutenzione</option>
+                </select>
+                <label for="selectStato">Stato</label>
+              </div>
+            </div>
+            <div class="col-md-6">
+              <div class="form-floating">
+                <input type="date" class="form-control border-company" id="dateAcquisto"
+                       @bind="newVehicle.data_acquisto" placeholder="Data Acquisto" />
+                <label for="dateAcquisto">Data Acquisto</label>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-outline-secondary" @onclick="CancelAdd">Annulla</button>
+          <button class="btn btn-company" @onclick="ConfirmAddAsync">
+            <i class="bi bi-check-lg me-1"></i>Salva
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+}
+
+<!-- Modal Elimina Veicolo -->
+@if (showDeleteModal)
+{
+  <div class="modal-backdrop fade show"></div>
+  <div class="modal fade show d-block" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content border-danger rounded-3">
+        <div class="modal-header bg-danger text-white">
+          <h5 class="modal-title"><i class="bi bi-exclamation-triangle me-2"></i>Conferma Eliminazione</h5>
+          <button type="button" class="btn-close btn-close-white" @onclick="CancelDelete"></button>
+        </div>
+        <div class="modal-body">
+          Sei sicuro di voler eliminare il veicolo <strong>@vehicleToDelete?.targa</strong>?<br />
+          Questa operazione è irreversibile.
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-secondary" @onclick="CancelDelete">Annulla</button>
+          <button class="btn btn-danger" @onclick="ConfirmDeleteAsync">Elimina</button>
+        </div>
+      </div>
+    </div>
+  </div>
+}
+
+<!-- Modal Nuova Assegnazione -->
+@if (showAssignModal)
+{
+  <div class="modal-backdrop fade show"></div>
+  <div class="modal fade show d-block" tabindex="-1">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+      <div class="modal-content rounded-3 shadow-lg">
+        <div class="modal-header bg-company text-white">
+          <h5 class="modal-title"><i class="bi bi-link-45deg me-2"></i>Nuova Assegnazione</h5>
+          <button type="button" class="btn-close btn-close-white" @onclick="CancelAssign"></button>
+        </div>
+        <div class="modal-body">
+          @if (!string.IsNullOrEmpty(assignError))
+          {
+            <div class="alert alert-danger">@assignError</div>
+          }
+          <div class="row g-3">
+            <div class="col-md-6">
+              <div class="form-floating">
+                <select class="form-select border-company" id="selectDipendente"
+                        @bind="newAssign.dipendente_id">
+                  <option value="0">-- Dipendente --</option>
+                  @foreach (var d in dipendenti)
+                  {
+                    <option value="@d.id">@d.username</option>
+                  }
+                </select>
+                <label for="selectDipendente">Dipendente</label>
+              </div>
+            </div>
+            <div class="col-md-6">
+              <div class="form-floating">
+                <select class="form-select border-company" id="selectVeicolo"
+                        @bind="newAssign.v_id">
+                  <option value="0">-- Veicolo --</option>
+                    @foreach (var v in veicoli)
+                    {
+                        <option value="@v.v_id"
+                                disabled="@IsVehicleUnavailable(v.v_id)">
+                            @v.targa
+                        </option>
+                    }
+
+                </select>
+                <label for="selectVeicolo">Veicolo</label>
+              </div>
+            </div>
+            <div class="col-md-6">
+              <div class="form-floating">
+                <input type="date" class="form-control border-company" id="dateInizio"
+                       @bind="newAssign.data_inizio" placeholder="Data Inizio" />
+                <label for="dateInizio">Data Inizio</label>
+              </div>
+            </div>
+            <div class="col-md-6">
+              <div class="form-floating">
+                <input type="date" class="form-control border-company" id="dateFine"
+                       @bind="newAssign.data_fine" placeholder="Data Fine (opzionale)" />
+                <label for="dateFine">Data Fine (opzionale)</label>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-outline-secondary" @onclick="CancelAssign">Annulla</button>
+          <button class="btn btn-company" @onclick="ConfirmAssignAsync">
+            <i class="bi bi-check-lg me-1"></i>Assegna
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+}
+
+<!-- Modal Elimina Assegnazione -->
+@if (showDeleteAssignModal)
+{
+  <div class="modal-backdrop fade show"></div>
+  <div class="modal fade show d-block" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content border-danger rounded-3">
+        <div class="modal-header bg-danger text-white">
+          <h5 class="modal-title"><i class="bi bi-exclamation-triangle me-2"></i>Conferma Rimozione</h5>
+          <button type="button" class="btn-close btn-close-white" @onclick="CancelDeleteAssign"></button>
+        </div>
+        <div class="modal-body">
+          Vuoi rimuovere l’assegnazione di 
+          <strong>@assignToDelete?.Veicolo?.targa</strong> 
+          al dipendente <strong>@assignToDelete?.Dipendente?.username</strong>?
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-secondary" @onclick="CancelDeleteAssign">Annulla</button>
+          <button class="btn btn-danger" @onclick="ConfirmDeleteAssignAsync">Rimuovi</button>
+        </div>
+      </div>
+    </div>
+  </div>
+}
+
+<style>
+  :root {
+    --company-color: #165a61;
+  }
+
+  .text-company {
+    color: var(--company-color) !important;
+  }
+
+  .bg-company {
+    background-color: var(--company-color) !important;
+  }
+
+  .btn-company {
+    background-color: var(--company-color) !important;
+    border-color: var(--company-color) !important;
+    color: #fff !important;
+  }
+
+  .btn-outline-company {
+    color: var(--company-color);
+    border: 1px solid var(--company-color);
+  }
+  .btn-outline-company:hover {
+    background-color: var(--company-color);
+    color: #fff;
+  }
+
+  .border-company {
+    border-color: var(--company-color) !important;
+  }
+
+  .vehicle-management-page {
+    background: #fff;
+    border-radius: 0.75rem;
+  }
+
+  .table-responsive {
+    scrollbar-width: thin;
+    scrollbar-color: var(--company-color) #f1f1f1;
+  }
+  .table-responsive::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  .table-responsive::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 4px;
+  }
+  .table-responsive::-webkit-scrollbar-thumb {
+    background-color: var(--company-color);
+    border-radius: 4px;
+    border: 2px solid #f1f1f1;
+  }
+
+  .sticky-top {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+  }
+
+  .modal-content {
+    overflow: hidden;
+    border-radius: 0.75rem;
+  }
+  .modal-body .form-floating {
+    margin-bottom: 1rem;
+  }
+
+    .table-light{
+        --bs-table-bg: #165a61;
+        --bs-table-striped-bg: #ecedee;
+        --bs-table-striped-color: #000;
+        --bs-table-active-bg: #dfe0e1;
+        --bs-table-active-color: #000;
+        --bs-table-hover-bg: #e5e6e7;
+        --bs-table-hover-color: #000;
+        color: #ffffff;
+        border-color: #dfe0e1;
+    }
+</style>
+
+
+
+
+@code {
+    private List<Veicolo> veicoli = new();
+    private List<Utenti> dipendenti = new();
+    private List<AssegnazioneVeicolo> assignments = new();
+    private HashSet<int> currentAssignedVehicleIds = new();
+    private int totalVehicles;
+    private List<StatItem> vehicleStats = new();
+    private string searchTerm = "";
+
+    private bool showAddModal, showDeleteModal, showAssignModal, showDeleteAssignModal;
+    private Veicolo newVehicle = new() { km_totali = 0, data_acquisto = DateTime.Today, stato_corrente = "deposito" };
+    private Veicolo vehicleToDelete;
+    private AssegnazioneVeicolo newAssign = new() { data_inizio = DateTime.Today };
+    private AssegnazioneVeicolo assignToDelete;
+    private string assignError;
+    private string addError;  
+
+    private class StatItem
+    {
+        public string Label { get; set; }
+        public double Percent { get; set; }
+        public string BarClass { get; set; }
+    }
+
+    private IEnumerable<Veicolo> FilteredVehicles =>
+        string.IsNullOrWhiteSpace(searchTerm)
+            ? veicoli
+            : veicoli.Where(v => v.targa.Contains(searchTerm, StringComparison.OrdinalIgnoreCase));
+
+    protected override async Task OnInitializedAsync()
+        => await LoadAllAsync();
+
+    private async Task LoadAllAsync()
+    {
+        // 1) Carico veicoli con manutenzioni e assegnazioni
+        veicoli = await dbContext.Veicoli
+            .Include(v => v.Manutenzioni)
+            .Include(v => v.Assegnazioni)
+            .OrderBy(v => v.targa)
+            .ToListAsync();
+
+        // 2) Carico lista dipendenti (per la modal di assegnazione)
+        dipendenti = await dbContext.utenti
+            .Where(u => u.ruolo == "dipendente")
+            .OrderBy(u => u.username)
+            .ToListAsync();
+
+        // 3) Carico tutte le assegnazioni (per la tabella e per lo stato)
+        assignments = await dbContext.AssegnazioniVeicolo
+            .Include(a => a.Veicolo)
+            .Include(a => a.Dipendente)
+            .OrderByDescending(a => a.data_inizio)
+            .ToListAsync();
+
+        // 4) Trovo i veicoli assegnati “oggi”
+        var today = DateTime.Today;
+        currentAssignedVehicleIds = assignments
+            .Where(a =>
+                a.data_inizio.Date <= today &&
+                (a.data_fine == null || a.data_fine.Value.Date >= today))
+            .Select(a => a.v_id)
+            .ToHashSet();
+
+        // 5) Ricalcolo dinamico dello stato_corrente
+        foreach (var v in veicoli)
+        {
+            if (currentAssignedVehicleIds.Contains(v.v_id))
+            {
+                v.stato_corrente = "fuori deposito";
+            }
+            else if (v.Manutenzioni.Any(m =>
+                         m.data_intervento.Date == today && !m.is_completed))
+            {
+                v.stato_corrente = "manutenzione";
+            }
+            else
+            {
+                v.stato_corrente = "deposito";
+            }
+        }
+
+        // 6) Ricalcolo delle statistiche veicolo
+        totalVehicles = veicoli.Count;
+        var stati = new[]
+        {
+        ("deposito",        "Deposito",        "bg-secondary"),
+        ("fuori deposito",  "Fuori deposito",  "bg-warning"),
+        ("manutenzione",    "Manutenzione",    "bg-danger")
+    };
+        vehicleStats = stati.Select(s =>
+        {
+            var cnt = veicoli.Count(v => v.stato_corrente == s.Item1);
+            var pct = totalVehicles > 0 ? cnt * 100.0 / totalVehicles : 0;
+            return new StatItem { Label = s.Item2, Percent = pct, BarClass = s.Item3 };
+        }).ToList();
+    }
+
+
+
+    // Aggiungi veicolo...
+    private void ShowAddModal()
+    {
+        newVehicle = new() { km_totali = 0, data_acquisto = DateTime.Today, stato_corrente = "deposito" };
+        showAddModal = true;
+    }
+    private void CancelAdd() => showAddModal = false;
+
+    // Elimina veicolo...
+    private void ShowDeleteModal(Veicolo v) { vehicleToDelete = v; showDeleteModal = true; }
+    private void CancelDelete() => showDeleteModal = false;
+    private async Task ConfirmDeleteAsync()
+    {
+        if (vehicleToDelete != null)
+        {
+            dbContext.Veicoli.Remove(vehicleToDelete);
+            await dbContext.SaveChangesAsync();
+            showDeleteModal = false;
+            await LoadAllAsync();
+        }
+    }
+
+    // Aggiungi assegnazione con controllo sovrapposizioni
+    private void ShowAssignModal()
+    {
+        assignError = "";
+        newAssign = new() { data_inizio = DateTime.Today };
+        showAssignModal = true;
+    }
+    private void CancelAssign() => showAssignModal = false;
+    
+    private async Task ConfirmAssignAsync()
+    {
+        assignError = "";
+
+        // 1) Campi obbligatori: dipendente, veicolo e date
+        if (newAssign.dipendente_id == 0 || newAssign.v_id == 0)
+        {
+            assignError = "Seleziona veicolo e dipendente.";
+            return;
+        }
+
+        // 2) Date obbligatorie
+        if (newAssign.data_inizio == default
+            || !newAssign.data_fine.HasValue)
+        {
+            assignError = "Inserisci sia la data di inizio sia la data di fine.";
+            return;
+        }
+
+        // 3) Verifica coerenza date
+        if (newAssign.data_fine.Value < newAssign.data_inizio)
+        {
+            assignError = "La data di fine deve essere uguale o successiva alla data di inizio.";
+            return;
+        }
+
+        // 4) Conflitto sul veicolo
+        var conflictV = await dbContext.AssegnazioniVeicolo
+            .Where(a => a.v_id == newAssign.v_id)
+            .Where(a =>
+                (a.data_fine == null || a.data_fine >= newAssign.data_inizio) &&
+                (newAssign.data_fine.Value >= a.data_inizio))
+            .AnyAsync();
+        if (conflictV)
+        {
+            assignError = "Veicolo già assegnato nel periodo selezionato.";
+            return;
+        }
+
+        // 5) Conflitto sul dipendente
+        var conflictD = await dbContext.AssegnazioniVeicolo
+            .Where(a => a.dipendente_id == newAssign.dipendente_id)
+            .Where(a =>
+                (a.data_fine == null || a.data_fine >= newAssign.data_inizio) &&
+                (newAssign.data_fine.Value >= a.data_inizio))
+            .AnyAsync();
+        if (conflictD)
+        {
+            assignError = "Dipendente già impegnato nel periodo selezionato.";
+            return;
+        }
+
+        // 6) Veicolo in manutenzione
+        var manut = await dbContext.Manutenzioni
+        .Where(m => m.v_id == newAssign.v_id)
+        .Where(m => !m.is_completed)
+        .Where(m =>
+            m.data_intervento.Date >= newAssign.data_inizio.Date &&
+            m.data_intervento.Date <= newAssign.data_fine.Value.Date)
+        .OrderBy(m => m.data_intervento)
+        .FirstOrDefaultAsync();
+
+        if (manut != null)
+        {
+            assignError = $"Manutenzione del veicolo prevista per il giorno {manut.data_intervento:dd/MM/yyyy}.";
+            return;
+        }
+
+        // 7) Se tutto ok, salvo
+        dbContext.AssegnazioniVeicolo.Add(newAssign);
+        await dbContext.SaveChangesAsync();
+        showAssignModal = false;
+        await LoadAllAsync();
+        StateHasChanged();
+    }
+
+    private async Task ConfirmAddAsync()
+    {
+        addError = "";
+
+        // 1) Targa e modello non vuoti
+        if (string.IsNullOrWhiteSpace(newVehicle.targa) ||
+            string.IsNullOrWhiteSpace(newVehicle.modello))
+        {
+            addError = "Targa e modello sono obbligatori.";
+            return;
+        }
+
+        // 2) Anno immatricolazione ragionevole
+        var anno = newVehicle.anno_immatricolazione;
+        var oggi = DateTime.Today.Year;
+        if (anno < 1900 || anno > oggi)
+        {
+            addError = $"Anno immatricolazione deve essere tra 1900 e {oggi}.";
+            return;
+        }
+
+        // 3) KM ≥ 0
+        if (newVehicle.km_totali < 0)
+        {
+            addError = "I KM totali non possono essere negativi.";
+            return;
+        }
+
+        // 4) Stato selezionato
+        if (string.IsNullOrEmpty(newVehicle.stato_corrente))
+        {
+            addError = "Seleziona uno stato per il veicolo.";
+            return;
+        }
+
+        // 5) Data acquisto valida (non di default, non futura)
+        if (newVehicle.data_acquisto == default ||
+            newVehicle.data_acquisto > DateTime.Today)
+        {
+            addError = "Inserisci una data di acquisto valida (non nel futuro).";
+            return;
+        }
+
+        // Se tutto ok, salvo
+        dbContext.Veicoli.Add(newVehicle);
+        await dbContext.SaveChangesAsync();
+
+        showAddModal = false;
+        await LoadAllAsync();
+    }
+
+    private bool IsVehicleUnavailable(int vId)
+    {
+        if (newAssign.data_inizio == default || !newAssign.data_fine.HasValue)
+            return false;   // finché l’utente non ha scelto entrambe le date, lascia selezionare
+
+        var start = newAssign.data_inizio.Date;
+        var end = newAssign.data_fine.Value.Date;
+
+        // verifica sovrapposizione con qualsiasi assegnazione esistente
+        return assignments.Any(a =>
+            a.v_id == vId
+            && a.data_inizio.Date <= end
+            && (a.data_fine == null || a.data_fine.Value.Date >= start)
+        );
+    }
+
+
+
+    // Elimina assegnazione...
+    private void ShowDeleteAssignModal(AssegnazioneVeicolo a) { assignToDelete = a; showDeleteAssignModal = true; }
+    private void CancelDeleteAssign() => showDeleteAssignModal = false;
+    private async Task ConfirmDeleteAssignAsync()
+    {
+        if (assignToDelete != null)
+        {
+            dbContext.AssegnazioniVeicolo.Remove(assignToDelete);
+            await dbContext.SaveChangesAsync();
+            showDeleteAssignModal = false;
+            await LoadAllAsync();
+            StateHasChanged();
+        }
+    }
+}

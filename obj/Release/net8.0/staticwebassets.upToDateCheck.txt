@@ -1,0 +1,13 @@
+wwwroot\app.css
+wwwroot\bootstrap\bootstrap.min.css
+wwwroot\bootstrap\bootstrap.min.css.map
+wwwroot\favicon.png
+wwwroot\images\AccessDenied.png
+wwwroot\images\BGHomeNA.png
+wwwroot\images\BGLogin.png
+wwwroot\images\icon-home-map.png
+wwwroot\images\Logo.png
+wwwroot\images\LogoFB.png
+wwwroot\images\LogoIG.png
+wwwroot\images\LogoutExec.png
+wwwroot\images\LogoX.png

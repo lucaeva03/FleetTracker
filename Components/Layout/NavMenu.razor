@@ -1,0 +1,99 @@
+﻿<div class="top-row ps-3 navbar navbar-dark">
+    <div class="container-fluid">
+        <span class="navbar-brand">FleetTracker</span>
+    </div>
+</div>
+
+<input type="checkbox" title="Navigation menu" class="navbar-toggler" />
+
+<div class="nav-scrollable" onclick="document.querySelector('.navbar-toggler').click()">
+    <nav class="flex-column">
+        
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="/" Match="NavLinkMatch.All">
+                <span class="bi bi-house-door-fill" aria-hidden="true"></span> Home
+            </NavLink>
+        </div>
+
+        <AuthorizeView Roles="superadmin">
+            <Authorized>
+                <div class="nav-item px-3">
+                    <NavLink class="nav-link" href="S_gestione_account">
+                        <span class="bi bi bi-person-gear" aria-hidden="true"></span> Gestione Account
+                    </NavLink>
+                </div>
+                <div class="nav-item px-3">
+                    <NavLink class="nav-link" href="S_super_signup">
+                        <span class="bi bi-person-plus" aria-hidden="true"></span> Creazione Account
+                    </NavLink>
+                </div>
+            </Authorized>
+        </AuthorizeView>
+
+        <AuthorizeView Roles="admin">
+            <Authorized>
+                <div class="nav-item px-3">
+                    <NavLink class="nav-link" href="A_gestione_veicoli">
+                        <span class="bi bi-truck" aria-hidden="true"></span> Gestione Veicoli
+                    </NavLink>
+                </div>
+                <div class="nav-item px-3">
+                    <NavLink class="nav-link" href="A_monitoraggio_consumi">
+                        <span class="bi bi-speedometer" aria-hidden="true"></span> Report Consumi
+                    </NavLink>
+                </div>
+                <div class="nav-item px-3">
+                    <NavLink class="nav-link" href="A_storico_manutenzioni">
+                        <span class="bi bi-tools" aria-hidden="true"></span> Gestione Manutenzioni
+                    </NavLink>
+                </div>
+                <div class="nav-item px-3">
+                    <NavLink class="nav-link" href="A_gestione_consegne">
+                        <span class="bi bi-box-seam" aria-hidden="true"></span> Gestione Consegne
+                    </NavLink>
+                </div>
+                <div class="nav-item px-3">
+                    <NavLink class="nav-link" href="A_tracciamento_percorsi">
+                        <span class="bi bi-geo-alt" aria-hidden="true"></span> Tracciamento Percorsi
+                    </NavLink>
+                </div>
+            </Authorized>
+        </AuthorizeView>
+
+        <AuthorizeView Roles="dipendente">
+            <Authorized>
+                <div class="nav-item px-3">
+                    <NavLink class="nav-link" href="D_gestione_veicolo">
+                        <span class="bi bi-truck" aria-hidden="true"></span> Gestione Veicolo
+                    </NavLink>
+                </div>
+                <div class="nav-item px-3">
+                    <NavLink class="nav-link" href="D_monitoraggio_consumi">
+                        <span class="bi bi-speedometer" aria-hidden="true"></span> Monitoraggio Consumi
+                    </NavLink>
+                </div>
+                <div class="nav-item px-3">
+                    <NavLink class="nav-link" href="D_consegne">
+                        <span class="bi bi-tools" aria-hidden="true"></span> Consegne
+                    </NavLink>
+                </div>
+                <div class="nav-item px-3">
+                    <NavLink class="nav-link" href="D_percorso_dipendente">
+                        <span class="bi bi-geo-alt" aria-hidden="true"></span> Percorso
+                    </NavLink>
+                </div>
+            </Authorized>
+        </AuthorizeView>
+
+        <div class="nav-item px-3">
+            <div class="mt-auto pb-3">
+                <a class="nav-link logout d-flex align-items-center" href="/logout">
+                    <i class="bi-lock-fill me-3"></i> Logout
+                </a>
+            </div>
+        </div>
+
+        
+    </nav>
+</div>
+

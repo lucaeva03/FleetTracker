@@ -1,0 +1,119 @@
+﻿@layout FleetTracker.Components.Layout.NoMenuLayout
+@page "/login"
+
+@using FleetTracker
+@using FleetTracker.Data
+@using FleetTracker.Models.ViewModels
+@using System.Security.Claims
+@using Microsoft.AspNetCore.Authentication
+@using Microsoft.AspNetCore.Authentication.Cookies
+@using static BCrypt.Net.BCrypt
+
+
+@inject FleetTrackerDbContext dbContext
+@inject NavigationManager navigationManager
+
+<PageTitle>Login - FleetTracker</PageTitle>
+
+
+<div class="login-page d-flex flex-column justify-content-center align-items-center">
+    <div class="login-header w-100 px-5">
+        <h1 class="login-title2">FleetTracker</h1>
+    </div>
+
+    <div class="login-box bg-white shadow rounded-4">
+        <div class="text-center mb-2">
+            <img src="images/Logo.png" alt="Logo" class="login-logo mb-1" />
+            <h2 class="fw-bold mb-1">Benvenuto!</h2>
+            <p class="text-muted">Accedi per continuare</p>
+        </div>
+
+        <EditForm Model="@Model" OnValidSubmit="Authenticate" FormName="LoginForm">
+            <DataAnnotationsValidator />
+
+            <div class="mb-3">
+                <label class="form-label">Username</label>
+                <InputText @bind-Value="Model.username" class="form-control" placeholder="Inserisci username" />
+                <ValidationMessage For="@(() => Model.username)" />
+            </div>
+
+            <div class="mb-4">
+                <label class="form-label">Password</label>
+                <InputText @bind-Value="Model.password" type="password" class="form-control" placeholder="Inserisci password" />
+                <ValidationMessage For="@(() => Model.password)" />
+            </div>
+
+            @if (!string.IsNullOrEmpty(errorMessage))
+            {
+                <div class="alert alert-danger text-center">@errorMessage</div>
+            }
+
+            <div class="d-grid">
+                <button type="submit" class="btn btn-login">Login</button>
+            </div>
+            <div class="text-center mt-3">
+                <span>
+                    Sei un nostro cliente e non hai un account?
+                    <a href="/signup" class="text-decoration-underline text-primary fw-semibold">Registrati</a>
+                </span>
+            </div>
+
+        </EditForm>
+    </div>
+
+    <div class="social-icons mt-4 d-flex gap-4 justify-content-center">
+        <a href="https://www.instagram.com" target="_blank"><img src="/images/LogoIG.png" alt="Instagram" /></a>
+        <a href="https://www.facebook.com" target="_blank"><img src="/images/LogoFB.png" alt="Facebook" /></a>
+        <a href="https://www.twitter.com" target="_blank"><img src="/images/LogoX.png" alt="X" /></a>
+    </div>
+</div>
+
+@code {
+    [CascadingParameter]
+    public HttpContext? HttpContext { get; set; }
+
+    [SupplyParameterFromForm]
+    public LoginViewModel Model { get; set; } = new();
+
+    private string? errorMessage;
+
+    protected override void OnInitialized()
+    {
+        if (HttpContext?.User?.Identity?.IsAuthenticated == true)
+        {
+            navigationManager.NavigateTo("/", forceLoad: true);
+        }
+    }
+
+
+    private async Task Authenticate()
+    {
+        var userAccount = dbContext.utenti.FirstOrDefault(x => x.username == Model.username);
+        if (userAccount is null || !BCrypt.Net.BCrypt.Verify(Model.password, userAccount.password))
+        {
+            errorMessage = "Password o Username non valide";
+            return;
+        }
+
+        var claims = new List<Claim>
+        {
+            new Claim(ClaimTypes.Name, Model.username),
+            new Claim(ClaimTypes.Role, userAccount.ruolo)
+        };
+
+        var identity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
+        var principal = new ClaimsPrincipal(identity);
+        await HttpContext.SignInAsync(principal);
+        navigationManager.NavigateTo("/");
+    }
+}
+
+<style>
+    body, html {
+        height: 100%;
+        margin: 0;
+        font-family: 'Poppins', sans-serif;
+        background: url('/images/BGLogin.png') no-repeat center center fixed;
+        background-size: cover;
+    }
+</style>

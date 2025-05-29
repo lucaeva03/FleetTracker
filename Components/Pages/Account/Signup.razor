@@ -1,0 +1,272 @@
+﻿@page "/signup"
+
+@using FleetTracker
+@using FleetTracker.Data
+@using FleetTracker.Models.Events
+@using System.ComponentModel.DataAnnotations
+@using static BCrypt.Net.BCrypt
+
+@inject FleetTrackerDbContext dbContext
+@inject NavigationManager navigationManager
+
+<PageTitle>SignUp - FleetTracker</PageTitle>
+
+<div class="login-page d-flex flex-column justify-content-center align-items-center">
+    <div class="login-header w-100 px-5">
+        <h1 class="login-title2">FleetTracker</h1>
+    </div>
+
+    <div class="login-box bg-white shadow rounded-4">
+        <div class="text-center mb-2">
+            <h2 class="fw-bold mb-1">Crea un account</h2>
+            <p class="text-muted">Compila i campi per registrarti</p>
+        </div>
+
+        <EditForm Model="@Model" OnValidSubmit="Register" @onsubmit:preventDefault FormName="SignUpForm">
+            <DataAnnotationsValidator />
+
+            <div class="mb-3">
+                <label class="form-label">Username</label>
+                <InputText @bind-Value="Model.Username" class="form-control" placeholder="Inserisci username" />
+                <ValidationMessage For="@(() => Model.Username)" />
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label">Email</label>
+                <InputText @bind-Value="Model.Email" class="form-control" placeholder="Inserisci email" />
+                <ValidationMessage For="@(() => Model.Email)" />
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label">Password</label>
+                <InputText @bind-Value="Model.Password" type="password" class="form-control" placeholder="Inserisci password" />
+                <ValidationMessage For="@(() => Model.Password)" />
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label">Conferma Password</label>
+                <InputText @bind-Value="Model.ConfirmPassword" type="password" class="form-control" placeholder="Reinserisci password" />
+                <ValidationMessage For="@(() => Model.ConfirmPassword)" />
+            </div>
+
+
+            @if (!string.IsNullOrEmpty(errorMessage))
+            {
+                <div class="alert alert-danger text-center">@errorMessage</div>
+            }
+            @if (success)
+            {
+                <div class="alert alert-success text-center">
+                    Registrazione completata! <br /> <a href="/login">Effettua il login</a>
+                </div>
+            }
+
+            <button type="submit" class="btn-login">Registrati</button>
+
+            <div class="text-center mt-3">
+                <span>Hai già un account? <a href="/login" class="text-decoration-underline text-primary fw-semibold">Login</a></span>
+            </div>
+        </EditForm>
+    </div>
+
+    <div class="social-icons mt-4 mb-4 d-flex gap-4 justify-content-center">
+        <a href="https://www.instagram.com" target="_blank"><img src="/images/LogoIG.png" alt="Instagram" /></a>
+        <a href="https://www.facebook.com" target="_blank"><img src="/images/LogoFB.png" alt="Facebook" /></a>
+        <a href="https://www.twitter.com" target="_blank"><img src="/images/LogoX.png" alt="X" /></a>
+    </div>
+</div>
+
+<style>
+    body, html {
+        height: 100%;
+        margin: 0;
+        font-family: 'Poppins', sans-serif;
+        background: url('/images/BGLogin.png') no-repeat center center fixed;
+        background-size: cover;
+    }
+
+    .login-page {
+        min-height: 100vh;
+    }
+
+    .login-header .login-title2 {
+        font-family: 'Poppins', sans-serif;
+        font-weight: 500;
+        font-size: 8vh;
+        color: #165a61;
+        text-align: center;
+        text-shadow: -1px -1px 1px rgba(0, 0, 0, 0.4), 1px -1px 1px rgba(0, 0, 0, 0.4), -1px 1px 1px rgba(0, 0, 0, 0.4), 1px 1px 1px rgba(0, 0, 0, 0.4);
+    }
+
+    .login-box {
+        max-width: 450px;
+        width: 100%;
+        background-color: #ffffff;
+        border-radius: 2rem;
+        padding: 2em 4em;
+        box-shadow: 0 0 12px rgba(0, 0, 0, 0.1);
+    }
+
+    .login-logo {
+        max-height: 80px;
+    }
+
+    .form-label {
+        font-weight: 600;
+    }
+
+    .form-control {
+        width: 100%;
+        padding: 0.6rem;
+        border-radius: 0.5rem;
+        border: 1px solid #ccc;
+        font-size: 1rem;
+    }
+
+    .btn-login {
+        background-color: #165a61;
+        color: #ffffff;
+        padding: 0.75rem;
+        font-size: 1.2rem;
+        font-weight: 500;
+        border-radius: 2rem;
+        transition: background-color 0.3s ease;
+        border: none;
+        width: 100%;
+        margin-top: 1rem;
+    }
+
+        .btn-login:hover {
+            background-color: #10474c;
+        }
+
+    .text-muted {
+        color: #666;
+    }
+
+    .text-center {
+        text-align: center;
+    }
+
+    .text-decoration-underline {
+        text-decoration: underline;
+        color: #165a61;
+    }
+
+    .alert {
+        padding: 0.75rem;
+        margin-top: 1rem;
+        border-radius: 0.5rem;
+        font-size: 0.95rem;
+    }
+
+    .alert-danger {
+        background-color: #f8d7da;
+        color: #721c24;
+    }
+
+    .alert-success {
+        background-color: #d4edda;
+        color: #155724;
+    }
+
+    .social-icons img {
+        height: 45px;
+        transition: transform 0.2s ease;
+    }
+
+        .social-icons img:hover {
+            transform: scale(1.1);
+        }
+</style>
+
+@code {
+    [CascadingParameter]
+    public HttpContext? HttpContext { get; set; }
+
+    [SupplyParameterFromForm]
+    private RegisterViewModel Model { get; set; } = new();
+
+    private string? errorMessage;
+    private bool success = false;
+
+    public class PasswordStrengthAttribute : ValidationAttribute
+    {
+        public override bool IsValid(object? value)
+        {
+            var password = value as string;
+            if (string.IsNullOrWhiteSpace(password)) return false;
+
+            var hasUpper = password.Any(char.IsUpper);
+            var hasLower = password.Any(char.IsLower);
+            var hasDigit = password.Any(char.IsDigit);
+            var hasSymbol = password.Any(ch => !char.IsLetterOrDigit(ch));
+
+            return hasUpper && hasLower && hasDigit && hasSymbol;
+        }
+    }
+
+    protected override void OnInitialized()
+    {
+        if (HttpContext?.User?.Identity?.IsAuthenticated == true)
+        {
+            navigationManager.NavigateTo("/HomeAUT", forceLoad: true);
+        }
+    }
+
+    private async Task Register()
+    {
+        Console.WriteLine("Sto registrando l'utente!");
+
+        try
+        {
+            var exists = dbContext.utenti.Any(u => u.username == Model.Username || u.email == Model.Email);
+            if (exists)
+            {
+                errorMessage = "Username o email già in uso.";
+                return;
+            }
+
+            var user = new Utenti
+                {
+                    username = Model.Username,
+                    email = Model.Email,
+                    password = HashPassword(Model.Password),
+                    ruolo = "cliente"
+                };
+
+            dbContext.utenti.Add(user);
+            await dbContext.SaveChangesAsync();
+
+            success = true;
+            errorMessage = null;
+            Model = new();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Errore durante la registrazione: {ex.Message}";
+        }
+    }
+
+    public class RegisterViewModel
+    {
+        [Required(ErrorMessage = "Username obbligatorio")]
+        [RegularExpression("^[a-zA-Z0-9_]{3,20}$", ErrorMessage = "Consentiti solo lettere, numeri e underscore. Minimo 3 caratteri.")]
+        public string Username { get; set; } = string.Empty;
+
+
+        [Required(ErrorMessage = "Email obbligatoria")]
+        [EmailAddress(ErrorMessage = "Formato email non valido")]
+        public string Email { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Password obbligatoria")]
+        [MinLength(6, ErrorMessage = "Minimo 6 caratteri")]
+        [PasswordStrength(ErrorMessage = "La password deve contenere almeno una maiuscola, una minuscola, un numero e un simbolo")]
+        public string Password { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Conferma password obbligatoria")]
+        [Compare("Password", ErrorMessage = "Le password non coincidono")]
+        public string ConfirmPassword { get; set; } = string.Empty;
+
+    }
+}

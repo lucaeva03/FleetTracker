@@ -1,0 +1,543 @@
+﻿@page "/A_storico_manutenzioni"
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.EntityFrameworkCore
+@using FleetTracker.Data
+@using FleetTracker.Models.Events
+@using System.Globalization
+@rendermode InteractiveServer
+@attribute [Authorize(Roles = "admin")]
+@inject FleetTrackerDbContext dbContext
+
+<PageTitle>Gestione Manutenzioni - FleetTracker</PageTitle>
+
+<div class="container-fluid maintenance-management-page py-4">
+  <!-- Titolo e Ricerca -->
+  <div class="row mb-4 align-items-center">
+    <div class="col-12 d-flex align-items-center">
+      <i class="bi bi-tools display-6 text-company me-3"></i>
+      <h2 class="text-company fw-bold mb-0">Gestione Manutenzioni</h2>
+    </div>
+    <div class="col-md-8 mt-3">
+      <div class="input-group border border-company shadow-sm rounded-3 overflow-hidden">
+        <span class="input-group-text bg-company border-0">
+          <i class="bi bi-search text-white"></i>
+        </span>
+        <input class="form-control border-0"
+               placeholder="Cerca per targa..."
+               @bind-value="searchTerm"
+               @bind-value:event="oninput" />
+      </div>
+    </div>
+  </div>
+
+  <!-- Tabella Veicoli -->
+  <div class="row">
+    <div class="col-12">
+      <div class="card shadow-sm border-0 rounded-3">
+        <div class="table-responsive" style="max-height:50vh;">
+          @if (FilteredVehicles.Any())
+          {
+            <table class="table table-hover table-striped align-middle mb-0">
+              <thead class="table-light sticky-top">
+                <tr>
+                  <th>Targa</th>
+                  <th>Modello</th>
+                  <th class="text-center">Manutenzioni</th>
+                  <th class="text-center">Stato</th>
+                </tr>
+              </thead>
+              <tbody>
+                @foreach (var v in FilteredVehicles)
+                {
+                  bool overdue   = v.Manutenzioni.Any(m => m.data_intervento.Date < DateTime.Today && !m.is_completed);
+                  bool dueToday  = !overdue && v.Manutenzioni.Any(m => m.data_intervento.Date == DateTime.Today && !m.is_completed);
+                  bool noFuture  = !overdue && !dueToday && !v.Manutenzioni.Any(m => m.data_intervento.Date > DateTime.Today);
+                  bool future    = !overdue && !dueToday && !noFuture && v.Manutenzioni.Any(m => m.data_intervento.Date > DateTime.Today);
+                  <tr>
+                    <td class="fw-semibold text-company">@v.targa</td>
+                    <td>@v.modello</td>
+                    <td class="text-center">
+                      <button class="btn btn-sm btn-outline-company" @onclick="() => ShowMaintenanceModal(v)">
+                        <i class="bi bi-eye me-1"></i>Visualizza
+                      </button>
+                    </td>
+                    <td class="text-center">
+                      @if (overdue)
+                      {
+                        <span class="badge bg-danger">SCADUTA</span>
+                      }
+                      else if (dueToday)
+                      {
+                        <span class="badge bg-warning text-dark">OGGI</span>
+                      }
+                      else if (future)
+                      {
+                        <span class="badge bg-success">PROGRAMMATA</span>
+                      }
+                      else
+                      {
+                        <span class="badge bg-secondary">NON PROGRAMMATA</span>
+                      }
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          }
+          else
+          {
+            <div class="py-5">
+              <p class="text-center text-muted mb-0">Nessun veicolo trovato.</p>
+            </div>
+          }
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Statistiche -->
+  <div class="row mt-4">
+    <div class="col-12">
+      <div class="card shadow-sm border-0 rounded-3">
+        <div class="card-body">
+          <h5 class="card-title text-company mb-3"><strong>Statistiche Manutenzioni</strong></h5>
+          <ul class="list-group list-group-horizontal g-2">
+            <li class="list-group-item flex-fill text-center">
+              <small>PROGRAMMATA</small><br />
+              <span class="badge bg-success rounded-pill">
+                @percentFutureProgrammed.ToString("0.##")% (@countFutureProgrammed)
+              </span>
+            </li>
+            <li class="list-group-item flex-fill text-center">
+              <small>OGGI</small><br />
+              <span class="badge bg-warning text-dark rounded-pill">
+                @percentDueToday.ToString("0.##")% (@countDueToday)
+              </span>
+            </li>
+            <li class="list-group-item flex-fill text-center">
+              <small>SCADUTA</small><br />
+              <span class="badge bg-danger rounded-pill">
+                @percentOverdue.ToString("0.##")% (@countOverdue)
+              </span>
+            </li>
+            <li class="list-group-item flex-fill text-center">
+              <small>NON PROGRAMMATA</small><br />
+              <span class="badge bg-secondary rounded-pill">
+                @percentNoFuture.ToString("0.##")% (@countNoFuture)
+              </span>
+            </li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Manutenzioni -->
+  @if (showMaintenanceModal && selectedVehicle != null)
+  {
+    <div class="modal-backdrop fade show"></div>
+    <div class="modal fade show d-block" tabindex="-1">
+      <div class="modal-dialog modal-xl modal-dialog-centered">
+        <div class="modal-content rounded-3 shadow-lg">
+          <div class="modal-header bg-company text-white">
+            <h5 class="modal-title">
+              <i class="bi bi-wrench me-2"></i>
+              Manutenzioni - @selectedVehicle.targa
+            </h5>
+            <button type="button" class="btn-close btn-close-white" @onclick="CloseMaintenanceModal"></button>
+          </div>
+          <div class="modal-body">
+            <div class="row mb-4">
+              <div class="col-md-4"><strong>Modello:</strong> @selectedVehicle.modello</div>
+              <div class="col-md-2"><strong>Anno:</strong> @selectedVehicle.anno_immatricolazione</div>
+              <div class="col-md-2"><strong>KM:</strong> @selectedVehicle.km_totali</div>
+              <div class="col-md-4"><strong>Acquisto:</strong> @selectedVehicle.data_acquisto.ToString("dd/MM/yyyy")</div>
+            </div>
+
+            <!-- Aggiungi manutenzione -->
+            <div class="card mb-4 shadow-sm border-0 rounded-3">
+              <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                <strong>Aggiungi futura manutenzione</strong>
+                <button class="btn btn-sm btn-outline-company" @onclick="ToggleAddForm">
+                  <i class="bi @(showAddForm ? "bi-dash-lg" : "bi-plus-lg")"></i>
+                </button>
+              </div>
+              @if (showAddForm)
+              {
+                <div class="card-body">
+                  @if (!string.IsNullOrEmpty(addError))
+                  {
+                    <div class="alert alert-danger">@addError</div>
+                  }
+                  <div class="row g-3">
+                    <div class="col-md-4">
+                      <div class="form-floating">
+                        <select class="form-select border-company" @bind="newMaintenance.mt_id">
+                          <option value="0">-- Tipo Manutenzione --</option>
+                          @foreach (var t in manutTypes)
+                          {
+                            <option value="@t.mt_id">@t.nome</option>
+                          }
+                        </select>
+                        <label>Tipo</label>
+                      </div>
+                    </div>
+                    <div class="col-md-3">
+                      <div class="form-floating">
+                        <input type="date" class="form-control border-company"
+                               @bind="newMaintenance.data_intervento" />
+                        <label>Data</label>
+                      </div>
+                    </div>
+                    <div class="col-md-3">
+                      <div class="form-floating">
+                        <input type="number" class="form-control border-company"
+                               @bind="newMaintenance.costo" min="0" step="0.01" />
+                        <label>Costo (€)</label>
+                      </div>
+                    </div>
+                    <div class="col-md-2 d-grid">
+                      <button class="btn btn-company h-75" @onclick="AddMaintenanceAsync">
+                        <i class="bi bi-plus-lg me-1"></i> Aggiungi
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              }
+            </div>
+
+            <!-- Tabella manutenzioni -->
+            <div class="table-responsive" style="max-height:40vh;">
+              @if (selectedMaintenances.Any())
+              {
+                <table class="table table-bordered align-middle mb-0">
+                  <thead class="table-light sticky-top">
+                    <tr>
+                      <th>Data</th>
+                      <th>Tipo</th>
+                      <th>Costo</th>
+                      <th>Completata</th>
+                      <th class="text-center">Azioni</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    @foreach (var m in selectedMaintenances)
+                    {
+                      <tr>
+                        <td>@m.data_intervento.ToString("dd/MM/yyyy")</td>
+                        <td>@m.TipoManutenzione!.nome</td>
+                        <td>@m.costo.ToString("N2")</td>
+                        <td>
+                          <span class="badge @(m.is_completed ? "bg-success" : "bg-warning text-dark")">
+                            @(m.is_completed ? "Sì" : "No")
+                          </span>
+                        </td>
+                        <td class="text-center">
+                          <button class="btn btn-sm btn-outline-company me-2"
+                                  @onclick="() => ToggleCompletionAsync(m)"
+                                  title="Completa/Incompleta">
+                            <i class="bi @(m.is_completed ? "bi-x-circle" : "bi-check-circle")"></i>
+                          </button>
+                          <button class="btn btn-sm btn-outline-danger"
+                                  @onclick="() => ShowDeleteMaintModal(m)"
+                                  title="Elimina">
+                            <i class="bi bi-trash-fill"></i>
+                          </button>
+                        </td>
+                      </tr>
+                    }
+                  </tbody>
+                </table>
+              }
+              else
+              {
+                <div class="py-5">
+                  <p class="text-center text-muted mb-0">Nessuna manutenzione trovata.</p>
+                </div>
+              }
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button class="btn btn-secondary" @onclick="CloseMaintenanceModal">Chiudi</button>
+          </div>
+        </div>
+
+        @if (showDeleteMaintConfirm && maintenanceToDelete != null)
+        {
+          <div class="modal-backdrop fade show"></div>
+          <div class="modal fade show d-block" tabindex="-1">
+            <div class="modal-dialog modal-dialog-centered">
+              <div class="modal-content rounded-3 border-danger">
+                <div class="modal-header bg-danger text-white">
+                  <h5 class="modal-title"><i class="bi bi-exclamation-triangle me-2"></i>Conferma Eliminazione</h5>
+                  <button type="button" class="btn-close btn-close-white" @onclick="CancelDeleteMaint"></button>
+                </div>
+                <div class="modal-body">
+                  Sei sicuro di eliminare la manutenzione del 
+                  <strong>@maintenanceToDelete.data_intervento.ToString("dd/MM/yyyy")</strong>?
+                </div>
+                <div class="modal-footer">
+                  <button class="btn btn-secondary" @onclick="CancelDeleteMaint">Annulla</button>
+                  <button class="btn btn-danger" @onclick="ConfirmDeleteMaintAsync">Elimina</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        }
+      </div>
+    </div>
+  }
+</div>
+
+<style>
+  :root {
+    --company-color: #165a61;
+  }
+
+  .maintenance-management-page {
+    background: #fff;
+    border-radius: 0.75rem;
+  }
+  .text-company {
+    color: var(--company-color) !important;
+  }
+  .bg-company {
+    background-color: var(--company-color) !important;
+  }
+  .border-company {
+    border-color: var(--company-color) !important;
+  }
+  .btn-company {
+    background-color: var(--company-color) !important;
+    border-color: var(--company-color) !important;
+    color: #fff !important;
+  }
+  .btn-outline-company {
+    color: var(--company-color);
+    border: 1px solid var(--company-color);
+  }
+  .btn-outline-company:hover {
+    background-color: var(--company-color);
+    color: #fff;
+  }
+
+  /* Scrollbar uniforme */
+  .table-responsive {
+    scrollbar-width: thin;
+    scrollbar-color: var(--company-color) #f1f1f1;
+  }
+  .table-responsive::-webkit-scrollbar {
+    width: 8px; height: 8px;
+  }
+  .table-responsive::-webkit-scrollbar-track {
+    background: #f1f1f1; border-radius: 4px;
+  }
+  .table-responsive::-webkit-scrollbar-thumb {
+    background-color: var(--company-color);
+    border-radius: 4px; border: 2px solid #f1f1f1;
+  }
+
+  /* Hover righe */
+  .table-hover tbody tr:hover {
+    background-color: rgba(22, 90, 97, 0.1);
+  }
+
+  /* Sticky header */
+  .sticky-top {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+  }
+
+  /* Modal e form */
+  .modal-content {
+    overflow: hidden;
+    border-radius: 0.75rem;
+  }
+  .modal-body .form-floating {
+    margin-bottom: 1rem;
+  }
+
+    .table-light {
+        --bs-table-bg: #165a61;
+        --bs-table-striped-bg: #ecedee;
+        --bs-table-striped-color: #000;
+        --bs-table-active-bg: #dfe0e1;
+        --bs-table-active-color: #000;
+        --bs-table-hover-bg: #e5e6e7;
+        --bs-table-hover-color: #000;
+        color: #ffffff;
+        border-color: #dfe0e1;
+    }
+</style>
+
+
+@code {
+    private List<Veicolo> vehicles = new();
+    private List<TipoManutenzione> manutTypes = new();
+    private List<Manutenzione> selectedMaintenances = new();
+    private string searchTerm = string.Empty;
+    private bool showMaintenanceModal;
+    private bool showAddForm;
+    private string addError;
+    private Veicolo? selectedVehicle;
+    private Manutenzione newMaintenance = new() { data_intervento = DateTime.Today };
+    private bool showDeleteMaintConfirm;
+    private Manutenzione? maintenanceToDelete;
+
+    // statistiche globali
+    private int totalVehicles;
+    private int countFutureProgrammed;
+    private int countDueToday;
+    private int countOverdue;
+    private int countNoFuture;
+    private double percentFutureProgrammed;
+    private double percentDueToday;
+    private double percentOverdue;
+    private double percentNoFuture;
+
+    private IEnumerable<Veicolo> FilteredVehicles =>
+        string.IsNullOrWhiteSpace(searchTerm)
+            ? vehicles
+            : vehicles.Where(v => v.targa.Contains(searchTerm, StringComparison.OrdinalIgnoreCase));
+
+    protected override async Task OnInitializedAsync()
+    {
+        manutTypes = await dbContext.TipiManutenzione.OrderBy(t => t.nome).ToListAsync();
+        vehicles = await dbContext.Veicoli
+            .Include(v => v.Manutenzioni)
+                .ThenInclude(m => m.TipoManutenzione)
+            .OrderBy(v => v.targa)
+            .ToListAsync();
+        ComputeGlobalStats();
+    }
+
+    private void ComputeGlobalStats()
+    {
+        totalVehicles = vehicles.Count;
+        countOverdue = vehicles.Count(v => v.Manutenzioni.Any(m => m.data_intervento.Date < DateTime.Today && !m.is_completed));
+        countDueToday = vehicles.Count(v => !v.Manutenzioni.Any(m => m.data_intervento.Date < DateTime.Today && !m.is_completed)
+                       && v.Manutenzioni.Any(m => m.data_intervento.Date == DateTime.Today && !m.is_completed));
+        countNoFuture = vehicles.Count(v => !v.Manutenzioni.Any(m => m.data_intervento.Date < DateTime.Today && !m.is_completed)
+                        && !v.Manutenzioni.Any(m => m.data_intervento.Date == DateTime.Today && !m.is_completed)
+                        && !v.Manutenzioni.Any(m => m.data_intervento.Date > DateTime.Today));
+        countFutureProgrammed = totalVehicles - (countOverdue + countDueToday + countNoFuture);
+
+        percentOverdue = totalVehicles > 0 ? countOverdue * 100.0 / totalVehicles : 0;
+        percentDueToday = totalVehicles > 0 ? countDueToday * 100.0 / totalVehicles : 0;
+        percentNoFuture = totalVehicles > 0 ? countNoFuture * 100.0 / totalVehicles : 0;
+        percentFutureProgrammed = totalVehicles > 0 ? countFutureProgrammed * 100.0 / totalVehicles : 0;
+    }
+    private async Task ShowMaintenanceModal(Veicolo v)
+    {
+        selectedVehicle = v;
+        await LoadMaintenances(v.v_id);
+        ComputeGlobalStats();
+        showAddForm = false;
+        addError = string.Empty;
+        newMaintenance = new() { v_id = v.v_id, data_intervento = DateTime.Today, costo = 0, is_completed = false };
+        showMaintenanceModal = true;
+    }
+
+    private async Task LoadMaintenances(int vid)
+    {
+        selectedMaintenances = await dbContext.Manutenzioni
+            .Where(m => m.v_id == vid)
+            .Include(m => m.TipoManutenzione)
+            .OrderByDescending(m => m.data_intervento)
+            .ToListAsync();
+    }
+
+    private void CloseMaintenanceModal()
+    {
+        showMaintenanceModal = false;
+        selectedVehicle = null;
+        selectedMaintenances.Clear();
+    }
+
+    private void ToggleAddForm() => showAddForm = !showAddForm;
+
+    private async Task AddMaintenanceAsync()
+    {
+        addError = string.Empty;
+
+        // 1) Validazioni esistenti
+        if (newMaintenance.mt_id <= 0)
+        {
+            addError = "Seleziona un tipo di manutenzione.";
+            return;
+        }
+        if (newMaintenance.data_intervento.Date < DateTime.Today)
+        {
+            addError = "La data deve essere oggi o successiva.";
+            return;
+        }
+        if (newMaintenance.costo < 0)
+        {
+            addError = "Il costo non può essere negativo.";
+            return;
+        }
+
+        // 2) Assegnazione veicolo
+        var data = newMaintenance.data_intervento.Date;
+        var conflictAssign = await dbContext.AssegnazioniVeicolo
+            .Include(a => a.Dipendente)
+            .Where(a => a.v_id == newMaintenance.v_id)
+            .Where(a =>
+                a.data_inizio.Date <= data &&
+                (a.data_fine == null || a.data_fine.Value.Date >= data))
+            .FirstOrDefaultAsync();
+
+        if (conflictAssign != null)
+        {
+            addError = $"Veicolo già assegnato al dipendente " +
+                       $"{conflictAssign.Dipendente!.username} " +
+                       $"il giorno {data:dd/MM/yyyy}.";
+            return;
+        }
+
+        // 3) Salvataggio manutenzione
+        dbContext.Manutenzioni.Add(newMaintenance);
+        await dbContext.SaveChangesAsync();
+
+        // 4) Ricarica lista e reset form
+        await LoadMaintenances(newMaintenance.v_id);
+        showAddForm = false;
+        newMaintenance = new Manutenzione
+            {
+                v_id = selectedVehicle!.v_id,
+                data_intervento = DateTime.Today,
+                costo = 0,
+                is_completed = false
+            };
+    }
+
+    private async Task ToggleCompletionAsync(Manutenzione m)
+    {
+        m.is_completed = !m.is_completed;
+        dbContext.Manutenzioni.Update(m);
+        await dbContext.SaveChangesAsync();
+        if (selectedVehicle != null) await LoadMaintenances(selectedVehicle.v_id);
+    }
+
+    private void ShowDeleteMaintModal(Manutenzione m)
+    {
+        maintenanceToDelete = m;
+        showDeleteMaintConfirm = true;
+    }
+    private void CancelDeleteMaint()
+    {
+        showDeleteMaintConfirm = false;
+        maintenanceToDelete = null;
+    }
+    private async Task ConfirmDeleteMaintAsync()
+    {
+        if (maintenanceToDelete != null)
+        {
+            dbContext.Manutenzioni.Remove(maintenanceToDelete);
+            await dbContext.SaveChangesAsync();
+            if (selectedVehicle != null) await LoadMaintenances(selectedVehicle.v_id);
+        }
+        showDeleteMaintConfirm = false;
+    }
+}

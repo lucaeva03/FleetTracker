@@ -1,0 +1,219 @@
+﻿@page "/A_monitoraggio_consumi"
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.EntityFrameworkCore
+@using FleetTracker.Data
+@using FleetTracker.Models.Events
+@rendermode InteractiveServer
+@attribute [Authorize(Roles = "admin")]
+@inject FleetTrackerDbContext dbContext
+
+<PageTitle>Report Consumi - FleetTracker</PageTitle>
+
+<div class="container-fluid vehicle-report-page py-4">
+    <!-- Titolo e Ricerca -->
+    <div class="row mb-4 align-items-center">
+        <div class="col-12 d-flex align-items-center">
+            <i class="bi bi-speedometer display-6 text-company me-3"></i>
+            <h2 class="text-company fw-bold mb-0">Report Consumi</h2>
+        </div>
+        <div class="col-md-8 mt-3">
+            <div class="input-group border border-company shadow-sm rounded overflow-hidden">
+                <span class="input-group-text bg-company border-0">
+                    <i class="bi bi-search text-white"></i>
+                </span>
+                <input type="text"
+                       class="form-control border-0"
+                       placeholder="Cerca per targa..."
+                       @bind="searchTerm"
+                       @bind:event="oninput" />
+            </div>
+        </div>
+        <div class="col-md-4 text-md-end mt-3">
+            <button class="btn btn-company shadow-sm px-4 py-2" @onclick="LoadReportsAsync">
+                <i class="bi bi-arrow-clockwise me-1"></i> Ricarica
+            </button>
+        </div>
+    </div>
+
+    <!-- Tabella Report -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card shadow-sm border-0 rounded-3">
+                <div class="card-body p-0">
+                    <div class="table-responsive" style="max-height:70vh;">
+                        @if (FilteredReports.Any())
+                        {
+                            <table class="table table-hover table-striped align-middle mb-0">
+                                <thead class="table-light sticky-top">
+                                    <tr>
+                                        <th>Targa</th>
+                                        <th>Modello</th>
+                                        @for (int i = 0; i < 5; i++)
+                                        {
+                                            <th>Report @(i + 1)</th>
+                                        }
+                                        <th>Litri Tot.</th>
+                                        <th>KM Tot.</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var r in FilteredReports)
+                                    {
+                                        <tr>
+                                            <td class="fw-semibold text-company">@r.Vehicle.targa</td>
+                                            <td>@r.Vehicle.modello</td>
+                                            @for (int i = 0; i < 5; i++)
+                                            {
+                                                if (i < r.LastConsumptions.Count)
+                                                {
+                                                    var c = r.LastConsumptions[i];
+                                                    <td>
+                                                        <small class="d-block text-muted">@c.data_log.ToString("dd/MM")</small>
+                                                        <small class="fw-bold">@c.Dipendente?.username</small><br />
+                                                        <small>@c.km_percorsi km, @c.litri_carburante L</small>
+                                                    </td>
+                                                }
+                                                else
+                                                {
+                                                    <td class="text-center text-muted">—</td>
+                                                }
+                                            }
+                                            <td>@r.TotalLitri.ToString("0.##") L</td>
+                                            <td>@r.Vehicle.km_totali km</td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        }
+                        else
+                        {
+                            <div class="py-5">
+                                <p class="text-center text-muted mb-0">Nessun veicolo trovato.</p>
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    :root {
+        --company-color: #165a61;
+    }
+
+    .vehicle-report-page {
+        background: #fff;
+        border-radius: 0.75rem;
+    }
+
+    .text-company {
+        color: var(--company-color) !important;
+    }
+
+    .bg-company {
+        background-color: var(--company-color) !important;
+    }
+
+    .btn-company {
+        background-color: var(--company-color) !important;
+        border-color: var(--company-color) !important;
+        color: #fff !important;
+    }
+
+    .border-company {
+        border-color: var(--company-color) !important;
+    }
+    /* Scrollbar personalizzato */
+    .table-responsive {
+        scrollbar-width: thin;
+        scrollbar-color: var(--company-color) #f1f1f1;
+    }
+
+        .table-responsive::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        .table-responsive::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 4px;
+        }
+
+        .table-responsive::-webkit-scrollbar-thumb {
+            background-color: var(--company-color);
+            border-radius: 4px;
+            border: 2px solid #f1f1f1;
+        }
+
+    .table-hover tbody tr:hover {
+        background-color: rgba(22, 90, 97, 0.1);
+    }
+
+    .sticky-top {
+        position: sticky;
+        top: 0;
+        z-index: 10;
+    }
+
+    .input-group-text {
+        padding: 0.5rem 0.75rem;
+    }
+
+    .table-light {
+        --bs-table-bg: #165a61;
+        --bs-table-striped-bg: #ecedee;
+        --bs-table-striped-color: #000;
+        --bs-table-active-bg: #dfe0e1;
+        --bs-table-active-color: #000;
+        --bs-table-hover-bg: #e5e6e7;
+        --bs-table-hover-color: #000;
+        color: #ffffff;
+        border-color: #dfe0e1;
+    }
+</style>
+
+@code {
+    private string searchTerm = "";
+    private List<VehicleReport> reports = new();
+
+    private IEnumerable<VehicleReport> FilteredReports =>
+      string.IsNullOrWhiteSpace(searchTerm)
+        ? reports
+        : reports.Where(r => r.Vehicle.targa.Contains(searchTerm, StringComparison.OrdinalIgnoreCase));
+
+    protected override async Task OnInitializedAsync() => await LoadReportsAsync();
+
+    private async Task LoadReportsAsync()
+    {
+        var veicoli = await dbContext.Veicoli.OrderBy(v => v.targa).ToListAsync();
+        var temp = new List<VehicleReport>(veicoli.Count);
+        foreach (var v in veicoli)
+        {
+            var last = await dbContext.ConsumiGiornalieri
+              .Where(c => c.v_id == v.v_id)
+              .Include(c => c.Dipendente)
+              .OrderByDescending(c => c.data_log)
+              .Take(5)
+              .ToListAsync();
+            var totalLitri = await dbContext.ConsumiGiornalieri
+              .Where(c => c.v_id == v.v_id)
+              .SumAsync(c => c.litri_carburante);
+            temp.Add(new VehicleReport
+                {
+                    Vehicle = v,
+                    LastConsumptions = last,
+                    TotalLitri = totalLitri
+                });
+        }
+        reports = temp;
+    }
+
+    private class VehicleReport
+    {
+        public Veicolo Vehicle { get; set; } = default!;
+        public List<ConsumoGiornaliero> LastConsumptions { get; set; } = new();
+        public decimal TotalLitri { get; set; }
+    }
+}

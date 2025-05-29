@@ -1,0 +1,108 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <base href="/" />
+    <link rel="stylesheet" href="bootstrap/bootstrap.min.css" />
+    <link rel="stylesheet" href="app.css" />
+    <link rel="stylesheet" href="FleetTracker.styles.css" />
+    <link rel="icon" type="image/png" href="favicon.png" />
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@700&display=swap" rel="stylesheet">
+    <HeadOutlet />
+
+    <link rel="stylesheet"
+          href="https://unpkg.com/leaflet/dist/leaflet.css" />
+</head>
+
+<body>
+    <app>
+        <component type="typeof(App)" render-mode="ServerPrerendered" />
+    </app>
+
+    <Routes />
+
+    <script src="_framework/blazor.web.js"></script>
+
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+    <script>
+        window.drawEmployeeRoute = (geojson, coords) => {
+          // Crea o resetta la mappa
+          let map = window._orsMap;
+          if (!map) {
+            map = L.map('map').setView([45.0, 11.0], 6);
+            window._orsMap = map;
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+              maxZoom: 19
+            }).addTo(map);
+          }
+
+          // Rimuove layer e marker precedenti
+          if (window._orsLayer)   map.removeLayer(window._orsLayer);
+          if (window._orsMarkers) window._orsMarkers.forEach(m => map.removeLayer(m));
+
+          // Aggiunge il percorso
+          window._orsLayer = L.geoJSON(geojson).addTo(map);
+
+          // Definizione icone: start vs default
+          const startIcon = L.icon({
+            iconUrl: '/images/icon-home-map.png',
+            iconSize: [32, 32],
+            iconAnchor: [16, 32],
+            popupAnchor: [0, -32]
+          });
+          const defaultIcon = L.icon({
+            iconUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon.png',
+            iconSize: [25, 41],
+            iconAnchor: [12, 41],
+            popupAnchor: [1, -34],
+            shadowUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-shadow.png',
+            shadowSize: [41, 41]
+          });
+
+          // Aggiunge i marker per ogni destinazione (coords[0] = deposito)
+          window._orsMarkers = coords.map((c, i) => {
+            const isStart = (i === 0);
+            const marker = L.marker(
+              [c[1], c[0]],
+              { icon: isStart ? startIcon : defaultIcon }
+            )
+            .addTo(map)
+            .bindPopup(isStart ? 'Punto di partenza' : `Destinazione ${i}`);
+            return marker;
+          });
+
+          // Adatta la vista a tutti gli elementi sulla mappa
+          const group = L.featureGroup([window._orsLayer, ...window._orsMarkers]);
+          map.fitBounds(group.getBounds());
+        };
+    </script>
+
+
+    <script>
+        // Pulisce tutto: layer, marker E map instance
+        window.clearMap = () => {
+          if (!window._orsMap) return;
+
+          // Rimuove ogni layer/marker
+          if (window._orsLayer) {
+            window._orsMap.removeLayer(window._orsLayer);
+            delete window._orsLayer;
+          }
+          if (window._orsMarkers) {
+            window._orsMarkers.forEach(m => window._orsMap.removeLayer(m));
+            delete window._orsMarkers;
+          }
+
+          // Rimuove la mappa stessa (così il div torna vuoto)
+          window._orsMap.remove();
+          delete window._orsMap;
+        };
+    </script>
+
+
+</body>
+
+</html>

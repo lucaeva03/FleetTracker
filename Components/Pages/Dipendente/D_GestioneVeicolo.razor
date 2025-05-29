@@ -1,0 +1,274 @@
+﻿@page "/D_gestione_veicolo"
+@rendermode InteractiveServer
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.EntityFrameworkCore
+@using FleetTracker.Data
+@using FleetTracker.Models.Events
+@using System.Globalization
+@attribute [Authorize(Roles = "dipendente")]
+@inject FleetTrackerDbContext dbContext
+@inject AuthenticationStateProvider authProvider
+
+<PageTitle>I miei Veicoli - FleetTracker</PageTitle>
+
+<div class="container-fluid vehicle-calendar-page py-2">
+    <!-- Titolo -->
+    <div class="row mb-3">
+        <div class="col-12 d-flex align-items-center">
+            <i class="bi bi-calendar3 display-6 text-company me-3"></i>
+            <h2 class="mb-0 text-company fw-bold">Il mio Calendario</h2>
+        </div>
+    </div>
+
+    <!-- Calendario -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card shadow-sm border-0 rounded-3">
+                <div class="card-header bg-company text-white d-flex justify-content-between align-items-center py-2">
+                    <button class="btn btn-sm btn-light text-company" @onclick="() => ChangeMonth(-1)">
+                        <i class="bi bi-chevron-left"></i>
+                    </button>
+                    @{
+                        var it = CultureInfo.GetCultureInfo("it-IT");
+                        var month = currentMonth.ToString("MMMM", it);
+                        var monthCap = char.ToUpper(month[0]) + month[1..];
+                    }
+                    <h5 class="mb-0">@monthCap @currentMonth.Year</h5>
+                    <button class="btn btn-sm btn-light text-company" @onclick="() => ChangeMonth(1)">
+                        <i class="bi bi-chevron-right"></i>
+                    </button>
+                </div>
+
+                <div class="card-body p-0">
+                    <div class="table-responsive calendar-wrapper">
+                        <table class="table table-bordered table-hover text-center mb-0">
+                            <thead class="table-light sticky-top">
+                                <tr>
+                                    @foreach (var dayName in dayNames)
+                                    {
+                                        <th>@dayName</th>
+                                    }
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var week in calendarDates)
+                                {
+                                    <tr>
+                                        @foreach (var date in week)
+                                        {
+                                            bool isCurrentMonth = date.Month == currentMonth.Month;
+                                            bool isSelected = selectedDate.HasValue && date.Date == selectedDate.Value.Date;
+                                            <td class="
+                                                   @( !isCurrentMonth  ? "text-muted bg-light" :
+                                                      isSelected       ? "bg-company text-white fw-bold" :
+                                                                         "bg-white" )
+                                                           "
+                                                style="cursor:pointer; vertical-align:middle;"
+                                                @onclick="() => OnDaySelected(date)">
+                                                @date.Day
+                                            </td>
+                                        }
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Dettagli giorno selezionato -->
+    @if (selectedDate.HasValue)
+    {
+        <div class="row">
+            <div class="col-12">
+                <div class="card shadow-sm border-0 rounded-3">
+                    <div class="card-header bg-company text-white py-2">
+                        <h5 class="mb-0">
+                            <i class="bi bi-info-circle me-2"></i>
+                            Dettagli per @selectedDate.Value.ToString("dd/MM/yyyy")
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <h6 class="text-company">Veicolo Assegnato</h6>
+                        @if (vehicleForDay != null)
+                        {
+                            <p>
+                                <strong>@vehicleForDay.Veicolo!.targa</strong> –
+                                @vehicleForDay.Veicolo!.modello
+                            </p>
+                        }
+                        else
+                        {
+                            <div class="alert alert-secondary">
+                                <i class="bi bi-truck me-1"></i> Nessun veicolo assegnato.
+                            </div>
+                        }
+
+                        <h6 class="text-company mt-4">Consegne</h6>
+                        @if (deliveriesForDay.Any())
+                        {
+                            <ul class="list-group list-group-flush">
+                                @foreach (var c in deliveriesForDay)
+                                {
+                                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                                        <div>
+                                            <span class="fw-semibold">#@c.c_id</span> –
+                                            @c.Cliente?.username
+                                        </div>
+                                        <span class="badge bg-company text-white text-uppercase">
+                                            @c.stato
+                                        </span>
+                                    </li>
+                                }
+                            </ul>
+                        }
+                        else
+                        {
+                            <p class="text-muted mb-0">Nessuna consegna assegnata.</p>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+
+</div>
+
+@code {
+    // calendario
+    private DateTime currentMonth = new(DateTime.Today.Year, DateTime.Today.Month, 1);
+    private List<string> dayNames = new[] { "Lun", "Mar", "Mer", "Gio", "Ven", "Sab", "Dom" }.ToList();
+    private List<List<DateTime>> calendarDates = new();
+
+    // utente & dati
+    private int employeeId;
+    private List<AssegnazioneVeicolo> myAssignments = new();
+    private List<Consegna> myDeliveries = new();
+
+    // selezione
+    private DateTime? selectedDate;
+    private AssegnazioneVeicolo? vehicleForDay;
+    private List<Consegna> deliveriesForDay = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadUserDataAsync();
+        BuildCalendar();
+    }
+
+    private async Task LoadUserDataAsync()
+    {
+        var auth = await authProvider.GetAuthenticationStateAsync();
+        var username = auth.User.Identity?.Name!;
+        var user = await dbContext.utenti.SingleAsync(u => u.username == username);
+        employeeId = user.id;
+
+        myAssignments = await dbContext.AssegnazioniVeicolo
+            .Include(a => a.Veicolo)
+            .Where(a => a.dipendente_id == employeeId)
+            .ToListAsync();
+
+        myDeliveries = await dbContext.Consegne
+            .Where(c => c.dipendente_id == employeeId)
+            .Include(c => c.Cliente)
+            .ToListAsync();
+    }
+
+    private void BuildCalendar()
+    {
+        calendarDates.Clear();
+        int startDow = ((int)currentMonth.DayOfWeek + 6) % 7 + 1; 
+        var cursor = currentMonth.AddDays(1 - startDow);
+        for (int w = 0; w < 6; w++)
+        {
+            var week = new List<DateTime>();
+            for (int d = 0; d < 7; d++)
+            {
+                week.Add(cursor);
+                cursor = cursor.AddDays(1);
+            }
+            calendarDates.Add(week);
+        }
+    }
+
+    private void ChangeMonth(int delta)
+    {
+        currentMonth = currentMonth.AddMonths(delta);
+        BuildCalendar();
+        selectedDate = null;
+    }
+
+    private void OnDaySelected(DateTime day)
+    {
+        selectedDate = day.Date;
+
+        vehicleForDay = myAssignments.FirstOrDefault(a =>
+            a.data_inizio.Date <= day.Date &&
+            (a.data_fine == null || a.data_fine.Value.Date >= day.Date)
+        );
+
+        deliveriesForDay = myDeliveries
+            .Where(c => c.data_prevista.Date == day.Date)
+            .OrderBy(c => c.orario_previsto)
+            .ToList();
+    }
+}
+
+<style>
+    :root {
+        --company-color: #165a61;
+    }
+
+    .text-company {
+        color: var(--company-color) !important;
+    }
+
+    .bg-company {
+        background-color: var(--company-color) !important;
+    }
+
+    .border-company {
+        border-color: var(--company-color) !important;
+    }
+
+    .btn-company {
+        background-color: var(--company-color) !important;
+        border-color: var(--company-color) !important;
+        color: #fff !important;
+    }
+
+    .calendar-wrapper {
+        max-height: 350px;
+        overflow-y: auto;
+        scrollbar-width: thin;
+        scrollbar-color: var(--company-color) #f1f1f1;
+    }
+
+        .calendar-wrapper::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .calendar-wrapper::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 4px;
+        }
+
+        .calendar-wrapper::-webkit-scrollbar-thumb {
+            background-color: var(--company-color);
+            border-radius: 4px;
+            border: 2px solid #f1f1f1;
+        }
+
+    .table-hover tbody tr:hover {
+        background-color: rgba(22, 90, 97, 0.1);
+    }
+
+    .sticky-top {
+        position: sticky;
+        top: 0;
+        z-index: 10;
+    }
+</style>

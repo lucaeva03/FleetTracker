@@ -1,0 +1,124 @@
+is_global = true
+build_property.MudDebugAnalyzer = 
+build_property.MudAllowedAttributePattern = 
+build_property.MudAllowedAttributeList = 
+build_property.TargetFramework = net8.0
+build_property.TargetFramework = net8.0
+build_property.TargetPlatformMinVersion = 
+build_property.TargetPlatformMinVersion = 
+build_property.UsingMicrosoftNETSdkWeb = true
+build_property.UsingMicrosoftNETSdkWeb = true
+build_property.ProjectTypeGuids = 
+build_property.ProjectTypeGuids = 
+build_property.InvariantGlobalization = 
+build_property.InvariantGlobalization = 
+build_property.PlatformNeutralAssembly = 
+build_property.PlatformNeutralAssembly = 
+build_property.EnforceExtendedAnalyzerRules = 
+build_property.EnforceExtendedAnalyzerRules = 
+build_property._SupportedPlatformList = Linux,macOS,Windows
+build_property._SupportedPlatformList = Linux,macOS,Windows
+build_property.RootNamespace = FleetTracker
+build_property.RootNamespace = FleetTracker
+build_property.ProjectDir = C:\Users\lucae\Documents\FleetTracker\FleetTracker\
+build_property.EnableComHosting = 
+build_property.EnableGeneratedComInterfaceComImportInterop = 
+build_property.RazorLangVersion = 8.0
+build_property.SupportLocalizedComponentNames = 
+build_property.GenerateRazorMetadataSourceChecksumAttributes = 
+build_property.MSBuildProjectDirectory = C:\Users\lucae\Documents\FleetTracker\FleetTracker
+build_property._RazorSourceGeneratorDebug = 
+build_property.EffectiveAnalysisLevelStyle = 8.0
+build_property.EnableCodeStyleSeverity = 
+
+[C:/Users/lucae/Documents/FleetTracker/FleetTracker/Components/App.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xBcHAucmF6b3I=
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/lucae/Documents/FleetTracker/FleetTracker/Components/Layout/NoMenuLayout.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xMYXlvdXRcTm9NZW51TGF5b3V0LnJhem9y
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/lucae/Documents/FleetTracker/FleetTracker/Components/Pages/Account/Signup.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xQYWdlc1xBY2NvdW50XFNpZ251cC5yYXpvcg==
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/lucae/Documents/FleetTracker/FleetTracker/Components/Pages/Admin/A_Gestione_Consegne.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xQYWdlc1xBZG1pblxBX0dlc3Rpb25lX0NvbnNlZ25lLnJhem9y
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/lucae/Documents/FleetTracker/FleetTracker/Components/Pages/Admin/A_Gestione_Veicoli.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xQYWdlc1xBZG1pblxBX0dlc3Rpb25lX1ZlaWNvbGkucmF6b3I=
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/lucae/Documents/FleetTracker/FleetTracker/Components/Pages/Admin/A_Monitoraggio_Consumi.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xQYWdlc1xBZG1pblxBX01vbml0b3JhZ2dpb19Db25zdW1pLnJhem9y
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/lucae/Documents/FleetTracker/FleetTracker/Components/Pages/Admin/A_Storico_Manutenzioni.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xQYWdlc1xBZG1pblxBX1N0b3JpY29fTWFudXRlbnppb25pLnJhem9y
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/lucae/Documents/FleetTracker/FleetTracker/Components/Pages/Admin/A_Tracciamento_Percorsi.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xQYWdlc1xBZG1pblxBX1RyYWNjaWFtZW50b19QZXJjb3JzaS5yYXpvcg==
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/lucae/Documents/FleetTracker/FleetTracker/Components/Pages/Dipendente/D_Consegne.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xQYWdlc1xEaXBlbmRlbnRlXERfQ29uc2VnbmUucmF6b3I=
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/lucae/Documents/FleetTracker/FleetTracker/Components/Pages/Dipendente/D_GestioneVeicolo.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xQYWdlc1xEaXBlbmRlbnRlXERfR2VzdGlvbmVWZWljb2xvLnJhem9y
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/lucae/Documents/FleetTracker/FleetTracker/Components/Pages/Dipendente/D_MonitoraggioConsumi.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xQYWdlc1xEaXBlbmRlbnRlXERfTW9uaXRvcmFnZ2lvQ29uc3VtaS5yYXpvcg==
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/lucae/Documents/FleetTracker/FleetTracker/Components/Pages/Dipendente/D_PercorsoDipendente.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xQYWdlc1xEaXBlbmRlbnRlXERfUGVyY29yc29EaXBlbmRlbnRlLnJhem9y
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/lucae/Documents/FleetTracker/FleetTracker/Components/Pages/Error.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xQYWdlc1xFcnJvci5yYXpvcg==
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/lucae/Documents/FleetTracker/FleetTracker/Components/Pages/Home.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xQYWdlc1xIb21lLnJhem9y
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/lucae/Documents/FleetTracker/FleetTracker/Components/Pages/Superadmin/S_GestioneAccount.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xQYWdlc1xTdXBlcmFkbWluXFNfR2VzdGlvbmVBY2NvdW50LnJhem9y
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/lucae/Documents/FleetTracker/FleetTracker/Components/Pages/Superadmin/S_SuperSignup.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xQYWdlc1xTdXBlcmFkbWluXFNfU3VwZXJTaWdudXAucmF6b3I=
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/lucae/Documents/FleetTracker/FleetTracker/Components/Routes.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xSb3V0ZXMucmF6b3I=
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/lucae/Documents/FleetTracker/FleetTracker/Components/_Imports.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xfSW1wb3J0cy5yYXpvcg==
+build_metadata.AdditionalFiles.CssScope = 
+
+[C:/Users/lucae/Documents/FleetTracker/FleetTracker/Components/Layout/MainLayout.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xMYXlvdXRcTWFpbkxheW91dC5yYXpvcg==
+build_metadata.AdditionalFiles.CssScope = b-u5qdna8a5w
+
+[C:/Users/lucae/Documents/FleetTracker/FleetTracker/Components/Layout/NavMenu.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xMYXlvdXRcTmF2TWVudS5yYXpvcg==
+build_metadata.AdditionalFiles.CssScope = b-xzkk5mdsm9
+
+[C:/Users/lucae/Documents/FleetTracker/FleetTracker/Components/Pages/Account/AccessDanied.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xQYWdlc1xBY2NvdW50XEFjY2Vzc0RhbmllZC5yYXpvcg==
+build_metadata.AdditionalFiles.CssScope = b-jst7aa44qn
+
+[C:/Users/lucae/Documents/FleetTracker/FleetTracker/Components/Pages/Account/Login.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xQYWdlc1xBY2NvdW50XExvZ2luLnJhem9y
+build_metadata.AdditionalFiles.CssScope = b-ujrh32fe9s
+
+[C:/Users/lucae/Documents/FleetTracker/FleetTracker/Components/Pages/Account/Logout.razor]
+build_metadata.AdditionalFiles.TargetPath = Q29tcG9uZW50c1xQYWdlc1xBY2NvdW50XExvZ291dC5yYXpvcg==
+build_metadata.AdditionalFiles.CssScope = b-kbigaonzbn

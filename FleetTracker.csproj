@@ -1,0 +1,34 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UserSecretsId>2e7f49be-9388-4599-b1cf-30cd8d6c6dc7</UserSecretsId>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Remove="Models\Nuova cartella1\**" />
+    <Content Remove="Models\Nuova cartella1\**" />
+    <EmbeddedResource Remove="Models\Nuova cartella1\**" />
+    <None Remove="Models\Nuova cartella1\**" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="BCrypt.Net-Next" Version="4.0.3" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="9.0.4" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="9.0.4" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="9.0.4">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    <None Include="wwwroot\images\Logo.png" />
+    <PackageReference Include="MudBlazor" Version="8.6.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="wwwroot\videos\" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,203 @@
+﻿@page "/D_consegne"
+@using Microsoft.EntityFrameworkCore
+@using FleetTracker.Data
+@using FleetTracker.Models.Events
+@using System.Globalization
+@rendermode InteractiveServer
+@inject FleetTrackerDbContext dbContext
+@inject AuthenticationStateProvider authProvider
+
+<PageTitle>Consegne di Oggi - FleetTracker</PageTitle>
+
+<div class="container-fluid delivery-page py-4">
+    <!-- Titolo -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex align-items-center">
+                <i class="bi bi-truck display-6 text-company me-3"></i>
+                <h2 class="mb-0 text-company fw-bold">
+                    Le mie Consegne di Oggi
+                </h2>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tabella Consegne -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card shadow-sm border-0 rounded-3">
+                <div class="card-header bg-company text-white py-2">
+                    <h5 class="mb-0"><i class="bi bi-list-ul me-2"></i><strong>Elenco Consegne</strong></h5>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive" style="max-height: 60vh;">
+                        @if (todaysDeliveries.Any())
+                        {
+                            <table class="table table-hover table-striped align-middle mb-0">
+                                <thead class="table-light sticky-top">
+                                    <tr>
+                                        <th>Codice</th>
+                                        <th>Cliente</th>
+                                        <th style="width:120px">Orario Previsto</th>
+                                        <th>Indirizzo</th>
+                                        <th>Stato</th>
+                                        <th class="text-center" style="width:120px">Azioni</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var c in todaysDeliveries)
+                                    {
+                                        <tr>
+                                            <td class="fw-semibold text-company">@c.c_id</td>
+                                            <td>@c.Cliente?.username</td>
+                                            <td>
+                                                <input type="time"
+                                                       class="form-control form-control-sm border-company"
+                                                       value="@(c.orario_previsto?.ToString(@"hh\:mm") ?? "")"
+                                                       @onchange="e => OnTimeChanged(e, c)" />
+                                            </td>
+                                            <td>@c.indirizzo_dest</td>
+                                            <td>
+                                                @if (c.stato == "in consegna")
+                                                {
+                                                    <span class="badge bg-warning text-dark text-uppercase">@c.stato</span>
+                                                }
+                                                else
+                                                {
+                                                    <span class="badge bg-success text-uppercase">@c.stato</span>
+                                                }
+                                            </td>
+                                            <td class="text-center">
+                                                <div class="d-inline-flex">
+                                                    <button class="btn btn-sm btn-company me-1" title="Salva"
+                                                            @onclick="() => ConfirmUpdateAsync(c)">
+                                                        <i class="bi bi-save"></i>
+                                                    </button>
+                                                    @if (c.stato == "in consegna")
+                                                    {
+                                                        <button class="btn btn-sm btn-outline-success" title="Segna come consegnato"
+                                                                @onclick="() => MarkDeliveredAsync(c)">
+                                                            <i class="bi bi-truck-flatbed"></i>
+                                                        </button>
+                                                    }
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        }
+                        else
+                        {
+                            <div class="py-5">
+                                <p class="text-center text-muted mb-0">Nessuna consegna per oggi.</p>
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private int employeeId;
+    private List<Consegna> todaysDeliveries = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadUserAsync();
+        await LoadDeliveriesAsync();
+    }
+
+    private async Task LoadUserAsync()
+    {
+        var auth = await authProvider.GetAuthenticationStateAsync();
+        var userName = auth.User.Identity?.Name!;
+        var user = await dbContext.utenti.SingleAsync(u => u.username == userName);
+        employeeId = user.id;
+    }
+
+    private async Task LoadDeliveriesAsync()
+    {
+        var today = DateTime.Today;
+        todaysDeliveries = await dbContext.Consegne
+            .Include(c => c.Cliente)
+            .Where(c =>
+                c.dipendente_id == employeeId &&
+                c.data_prevista == today)
+            .OrderBy(c => c.orario_previsto ?? TimeSpan.MaxValue)
+            .ToListAsync();
+    }
+
+    private void OnTimeChanged(ChangeEventArgs e, Consegna c)
+    {
+        var str = e.Value as string;
+        if (TimeSpan.TryParse(str, out var ts))
+            c.orario_previsto = ts;
+        else
+            c.orario_previsto = null;
+    }
+
+    private async Task ConfirmUpdateAsync(Consegna c)
+    {
+        dbContext.Consegne.Update(c);
+        await dbContext.SaveChangesAsync();
+        await LoadDeliveriesAsync();
+    }
+
+    private async Task MarkDeliveredAsync(Consegna c)
+    {
+        c.stato = "consegnato";
+        await ConfirmUpdateAsync(c);
+    }
+}
+
+<style>
+    :root {
+        --company-color: #165a61;
+    }
+
+    .text-company {
+        color: var(--company-color) !important;
+    }
+
+    .bg-company {
+        background-color: var(--company-color) !important;
+    }
+
+    .border-company {
+        border-color: var(--company-color) !important;
+    }
+
+    .btn-company {
+        background-color: var(--company-color) !important;
+        border-color: var(--company-color) !important;
+        color: #fff !important;
+    }
+
+    .table-responsive {
+        scrollbar-width: thin;
+        scrollbar-color: var(--company-color) #f1f1f1;
+    }
+
+        .table-responsive::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        .table-responsive::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 4px;
+        }
+
+        .table-responsive::-webkit-scrollbar-thumb {
+            background-color: var(--company-color);
+            border-radius: 4px;
+            border: 2px solid #f1f1f1;
+        }
+
+    .table-hover tbody tr:hover {
+        background-color: rgba(22, 90, 97, 0.1);
+    }
+</style>

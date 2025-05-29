@@ -1,0 +1,58 @@
+{
+  "Version": 1,
+  "WorkspaceRootPath": "C:\\Users\\lucae\\Documents\\FleetTracker\\FleetTracker\\",
+  "Documents": [
+    {
+      "AbsoluteMoniker": "D:0:0:{7AA144FB-F60F-4A7E-84FB-677944DF5F3F}|FleetTracker.csproj|c:\\users\\lucae\\documents\\fleettracker\\fleettracker\\components\\app.razor||{40D31677-CBC0-4297-A9EF-89D907823A98}",
+      "RelativeMoniker": "D:0:0:{7AA144FB-F60F-4A7E-84FB-677944DF5F3F}|FleetTracker.csproj|solutionrelative:components\\app.razor||{40D31677-CBC0-4297-A9EF-89D907823A98}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{7AA144FB-F60F-4A7E-84FB-677944DF5F3F}|FleetTracker.csproj|c:\\users\\lucae\\documents\\fleettracker\\fleettracker\\components\\pages\\superadmin\\s_supersignup.razor||{40D31677-CBC0-4297-A9EF-89D907823A98}",
+      "RelativeMoniker": "D:0:0:{7AA144FB-F60F-4A7E-84FB-677944DF5F3F}|FleetTracker.csproj|solutionrelative:components\\pages\\superadmin\\s_supersignup.razor||{40D31677-CBC0-4297-A9EF-89D907823A98}"
+    }
+  ],
+  "DocumentGroupContainers": [
+    {
+      "Orientation": 0,
+      "VerticalTabListWidth": 256,
+      "DocumentGroups": [
+        {
+          "DockedWidth": 200,
+          "SelectedChildIndex": 1,
+          "Children": [
+            {
+              "$type": "Bookmark",
+              "Name": "ST:0:0:{74946827-37a0-11d2-a273-00c04f8ef4ff}"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 0,
+              "Title": "App.razor",
+              "DocumentMoniker": "C:\\Users\\lucae\\Documents\\FleetTracker\\FleetTracker\\Components\\App.razor",
+              "RelativeDocumentMoniker": "Components\\App.razor",
+              "ToolTip": "C:\\Users\\lucae\\Documents\\FleetTracker\\FleetTracker\\Components\\App.razor",
+              "RelativeToolTip": "Components\\App.razor",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAFgAAAAmAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000759|",
+              "WhenOpened": "2025-05-21T07:05:28.671Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 1,
+              "Title": "S_SuperSignup.razor",
+              "DocumentMoniker": "C:\\Users\\lucae\\Documents\\FleetTracker\\FleetTracker\\Components\\Pages\\Superadmin\\S_SuperSignup.razor",
+              "RelativeDocumentMoniker": "Components\\Pages\\Superadmin\\S_SuperSignup.razor",
+              "ToolTip": "C:\\Users\\lucae\\Documents\\FleetTracker\\FleetTracker\\Components\\Pages\\Superadmin\\S_SuperSignup.razor",
+              "RelativeToolTip": "Components\\Pages\\Superadmin\\S_SuperSignup.razor",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000759|",
+              "WhenOpened": "2025-05-21T07:04:45.781Z",
+              "EditorCaption": ""
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
